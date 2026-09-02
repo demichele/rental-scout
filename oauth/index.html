@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OAuth Mercado Libre</title>
+  <style>
+    body { font: 16px/1.45 system-ui, sans-serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; }
+    h1 { font-size: 1.35rem; }
+    a.button { display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 0.65rem 1rem; border-radius: 6px; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+    .box { background: #f4f4f5; border-radius: 8px; padding: 0.9rem 1rem; }
+    ol { padding-left: 1.2rem; }
+  </style>
+</head>
+<body>
+  <h1>Obtener token de Mercado Libre</h1>
+  <p>Esto es el <strong>redirect URI</strong> del flujo Authorization Code. Mercado Libre te devuelve acá un <code>code</code> y el server lo canjea por <code>APP_USR-...</code>.</p>
+  <p>Usá una app de <a href="https://developers.mercadolibre.com.ar">developers.mercadolibre.com.ar</a> (no Mercado Pago: ese OAuth no sirve para buscar avisos).</p>
+  <div class="box">
+    <p>En la app, Redirect URI tiene que ser <strong>exactamente</strong>:</p>
+    <p><code>https://ESTE-DOMINIO/api/callback</code></p>
+    <p>Sin slash al final. El mismo valor va en la env <code>MELI_REDIRECT_URI</code> de Vercel.</p>
+  </div>
+  <ol>
+    <li>Creá la app en Mercado Libre con esa URI.</li>
+    <li>Cargá <code>MELI_CLIENT_ID</code>, <code>MELI_CLIENT_SECRET</code> y <code>MELI_REDIRECT_URI</code> en Vercel.</li>
+    <li>Autorizá con <strong>tu</strong> usuario (cuenta principal, no colaborador).</li>
+    <li>Copiá <code>MELI_ACCESS_TOKEN</code> al <code>.env</code> de rental-scout.</li>
+  </ol>
+  <p><a class="button" href="/api/start">Autorizar con Mercado Libre</a></p>
+</body>
+</html>

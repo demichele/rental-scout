@@ -2,7 +2,7 @@
 
 Buscador de alquileres en General Pacheco (Tigre, GBA Norte). Corre por cron, persiste avisos y avisa por Telegram.
 
-Preferencias en YAML, modelo `Listing`, SQLite (`data/scout.db`) y avisos Telegram (`NUEVA` / `BAJÓ DE PRECIO`). Todavía no hay adapters ni matcher.
+Preferencias en YAML, modelo `Listing`, SQLite (`data/scout.db`), adapters (Mercado Libre, ZonaProp, Argenprop) y avisos Telegram (`NUEVA` / `BAJÓ DE PRECIO`).
 
 ## Requisitos
 
@@ -16,7 +16,7 @@ source venv/bin/activate
 pip install -e ".[dev]"
 ```
 
-Copiá `.env.example` a `.env` y completá las credenciales de Telegram:
+Copiá `.env.example` a `.env` y completá las credenciales:
 
 ```bash
 cp .env.example .env
@@ -24,16 +24,18 @@ cp .env.example .env
 
 - `TELEGRAM_BOT_TOKEN`: token del bot (BotFather)
 - `TELEGRAM_CHAT_ID`: id del chat (usuario o grupo) donde van los avisos
+- `MELI_ACCESS_TOKEN`: Bearer de usuario (`APP_USR-...`), no el Client Secret. Redirect URI en Vercel: carpeta [`oauth/`](oauth/README.md).
 
-## Correr el stub
+ZonaProp y Argenprop son HTML: si el sitio redirige, el adapter sigue el 301. Si responde captcha/WAF (403), se salta ese portal; no se burla.
 
-Desde la raíz del repo, con el venv activo:
+## Correr una pasada
+
+Desde la raíz del repo, con el venv activo (carga `.env` de acá):
 
 ```bash
+python -m jobs.run_once --dry-run
 python -m jobs.run_once
 ```
-
-Debería imprimir `dry-run: 0 listings` y salir con código 0.
 
 ## Ping de Telegram
 

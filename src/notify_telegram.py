@@ -32,6 +32,14 @@ def _credentials() -> tuple[str, str]:
         raise TelegramConfigError(
             "Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID en el entorno"
         )
+    bot_id = token.split(":", 1)[0]
+    if chat_id == bot_id:
+        raise TelegramConfigError(
+            "TELEGRAM_CHAT_ID es el id del bot, no el tuyo. "
+            "Abrí el chat con el bot, mandá /start, y poné el chat.id "
+            "de TU usuario (getUpdates o @userinfobot). "
+            "El id del bot es la parte numérica del token; no lo uses como chat."
+        )
     return token, chat_id
 
 
@@ -116,7 +124,15 @@ def _send(text: str) -> None:
         json={"chat_id": chat_id, "text": text},
         timeout=SEND_TIMEOUT,
     )
-    response.raise_for_status()
-    payload = response.json()
-    if not payload.get("ok"):
-        raise RuntimeError(payload.get("description", "Telegram sendMessage failed"))
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {}
+    description = payload.get("description") or response.text[:300]
+    if response.is_error or not payload.get("ok", True):
+        raise RuntimeError(
+            f"Telegram sendMessage {response.status_code}: {description} "
+            f"(chat_id={chat_id!r}). "
+            "El bot tiene que haber recibido un /start tuyo; "
+            "si el token salió en un log, revocalo en BotFather."
+        )

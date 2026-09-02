@@ -1,6 +1,7 @@
 venv/
 .venv/
 .env
+oauth/.vercel
 __pycache__/
 *.py[cod]
 *$py.class

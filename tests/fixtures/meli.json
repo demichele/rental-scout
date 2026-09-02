@@ -1,0 +1,1370 @@
+{
+  "site_id": "MLA",
+  "country_default_time_zone": "GMT-03:00",
+  "paging": {
+    "total": 14,
+    "primary_results": 14,
+    "offset": 0,
+    "limit": 50
+  },
+  "results": [
+    {
+      "id": "MLA900000001",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm en barrio cerrado General Pacheco",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000001-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000001-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000001",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000002",
+      "site_id": "MLA",
+      "title": "Casa con pileta en country General Pacheco",
+      "price": 3200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000002-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000002-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000002",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "6",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000003",
+      "site_id": "MLA",
+      "title": "Casa 5 ambientes barrio privado Pacheco",
+      "price": 2100,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000003-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000003-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000003",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000004",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm pileta barrio cerrado General Pacheco",
+      "price": 2000000,
+      "currency_id": "ARS",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000004-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000004-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000004",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000005",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm con pileta en barrio privado Villa Pacheco",
+      "price": 2300,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000005-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000005-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000005",
+          "name": "Villa Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000006",
+      "site_id": "MLA",
+      "title": "Casa 5 dormitorios en Pacheco Golf Club",
+      "price": 3500,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000006-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000006-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000006",
+          "name": "Pacheco Golf Club"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "7",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000007",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm pileta barrio cerrado Nordelta",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000007-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000007-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000007",
+          "name": "Nordelta"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000008",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm pileta barrio cerrado Tigre centro",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000008-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000008-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000008",
+          "name": "Tigre"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000009",
+      "site_id": "MLA",
+      "title": "Casa 3 dorm pileta barrio cerrado General Pacheco",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000009-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000009-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000009",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000010",
+      "site_id": "MLA",
+      "title": "Casa 4 ambientes pileta barrio cerrado General Pacheco",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000010-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000010-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000010",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000011",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm barrio cerrado General Pacheco sin amenities",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000011-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000011-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000011",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242084",
+          "value_name": "No",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000012",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm con pileta sobre calle abierta General Pacheco",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000012-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000012-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000012",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242084",
+          "value_name": "No",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000013",
+      "site_id": "MLA",
+      "title": "Casa 4 dorm pileta barrio cerrado General Pacheco premium",
+      "price": 4000,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000013-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000013-I.jpg",
+      "category_id": "MLA1467",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000013",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242060",
+          "value_name": "Casa",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    },
+    {
+      "id": "MLA900000014",
+      "site_id": "MLA",
+      "title": "Departamento 4 dorm pileta barrio cerrado General Pacheco",
+      "price": 2200,
+      "currency_id": "USD",
+      "permalink": "https://casa.mercadolibre.com.ar/MLA-900000014-casa-_JM",
+      "thumbnail": "https://http2.mlstatic.com/MLA900000014-I.jpg",
+      "category_id": "MLA1473",
+      "date_created": "2026-08-01T12:00:00.000Z",
+      "location": {
+        "address_line": "",
+        "neighborhood": {
+          "id": "NBH-MLA900000014",
+          "name": "General Pacheco"
+        },
+        "city": {
+          "id": "TUxBQ1RJRzk0ZjQw",
+          "name": "Tigre"
+        },
+        "state": {
+          "id": "TUxBUEdSQWU4ZDkz",
+          "name": "Bs.As. G.B.A. Norte"
+        },
+        "country": {
+          "id": "AR",
+          "name": "Argentina"
+        },
+        "latitude": -34.452,
+        "longitude": -58.622
+      },
+      "address": {
+        "state_id": "TUxBUEdSQWU4ZDkz",
+        "state_name": "Bs.As. G.B.A. Norte",
+        "city_id": "TUxBQ1RJRzk0ZjQw",
+        "city_name": "Tigre"
+      },
+      "attributes": [
+        {
+          "id": "PROPERTY_TYPE",
+          "name": "Inmueble",
+          "value_id": "242059",
+          "value_name": "Departamento",
+          "value_struct": null
+        },
+        {
+          "id": "OPERATION",
+          "name": "Operación",
+          "value_id": "242073",
+          "value_name": "Alquiler",
+          "value_struct": null
+        },
+        {
+          "id": "FULL_BATHROOMS",
+          "name": "Baños",
+          "value_id": null,
+          "value_name": "3",
+          "value_struct": null
+        },
+        {
+          "id": "COVERED_AREA",
+          "name": "Superficie cubierta",
+          "value_id": null,
+          "value_name": "220 m²",
+          "value_struct": {
+            "number": 220,
+            "unit": "m²"
+          }
+        },
+        {
+          "id": "BEDROOMS",
+          "name": "Dormitorios",
+          "value_id": null,
+          "value_name": "4",
+          "value_struct": null
+        },
+        {
+          "id": "ROOMS",
+          "name": "Ambientes",
+          "value_id": null,
+          "value_name": "5",
+          "value_struct": null
+        },
+        {
+          "id": "HAS_SWIMMING_POOL",
+          "name": "Pileta",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        },
+        {
+          "id": "IN_GATED_COMMUNITY",
+          "name": "En barrio cerrado",
+          "value_id": "242085",
+          "value_name": "Sí",
+          "value_struct": null
+        }
+      ]
+    }
+  ]
+}
