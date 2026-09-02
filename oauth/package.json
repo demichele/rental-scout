@@ -1,8 +1,0 @@
-{
-  "name": "rental-scout-meli-oauth",
-  "private": true,
-  "description": "Redirect URI de OAuth para obtener MELI_ACCESS_TOKEN",
-  "engines": {
-    "node": ">=18"
-  }
-}

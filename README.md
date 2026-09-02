@@ -24,7 +24,7 @@ cp .env.example .env
 
 - `TELEGRAM_BOT_TOKEN`: token del bot (BotFather)
 - `TELEGRAM_CHAT_ID`: id del chat (usuario o grupo) donde van los avisos
-- `MELI_ACCESS_TOKEN`: Bearer de usuario (`APP_USR-...`), no el Client Secret. Redirect URI en Vercel: carpeta [`oauth/`](oauth/README.md).
+- `MELI_ACCESS_TOKEN`: Bearer de usuario (`APP_USR-...`), no el Client Secret. Callback en Vercel: [`oauth/README.md`](oauth/README.md).
 
 ZonaProp y Argenprop son HTML: si el sitio redirige, el adapter sigue el 301. Si responde captcha/WAF (403), se salta ese portal; no se burla.
 
