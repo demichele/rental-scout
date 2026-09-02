@@ -1,8 +1,11 @@
 {
   "name": "rental-scout-oauth",
   "private": true,
-  "description": "Vercel sirve solo el callback OAuth de Mercado Libre. El buscador Python corre en local.",
+  "description": "Redirect URI de OAuth de Mercado Libre (Vercel Root Directory = oauth).",
   "engines": {
     "node": "20.x"
+  },
+  "scripts": {
+    "build": "node build.js"
   }
 }

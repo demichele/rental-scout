@@ -1,21 +1,24 @@
-# OAuth Mercado Libre (redirect URI)
+# OAuth Mercado Libre (Vercel)
 
-App **Node** independiente. Si en Vercel el Root Directory es `oauth`, Python no existe para el deploy: no se lee el `pyproject.toml` de la raíz.
+Proyecto **Node** aparte del buscador Python. En Vercel, **Root Directory = `oauth`** (antes del primer deploy). Así no se lee el `pyproject.toml` de la raíz.
 
-Mercado Libre redirige a `/api/callback`; el server intercambia el `code` por `access_token` + `refresh_token`.
+## Al crear el proyecto
 
-## Redirect URI
+1. Add New → Project → `demichele/rental-scout`
+2. **Edit** Root Directory → `oauth`
+3. No toques Build Command / Output Directory (los pone `vercel.json`)
+4. Environment Variables (Production):
 
-```text
-https://TU-PROYECTO.vercel.app/api/callback
-```
+   | Name | Value |
+   |---|---|
+   | `MELI_CLIENT_ID` | App ID de developers.mercadolibre.com.ar |
+   | `MELI_CLIENT_SECRET` | Secret corto (~32 chars), no `APP_USR-` |
+   | `MELI_REDIRECT_URI` | `https://<dominio>.vercel.app/api/callback` |
 
-Sin slash al final. El mismo string en el panel de ML, en `MELI_REDIRECT_URI`, y en el authorize.
+   Si todavía no hay dominio: deployá, copiá `….vercel.app`, actualizá la env y **Redeploy**.
 
-## Deploy
+5. Deploy. En Mercado Libre, Redirect URI = **exactamente** el mismo `MELI_REDIRECT_URI` (sin slash final).
 
-1. Settings → General → **Root Directory:** `oauth`
-2. Framework Preset: Other (o dejá que detecte por `package.json`)
-3. **Output Directory** vacío (no `public`)
-4. Env Production: `MELI_CLIENT_ID`, `MELI_CLIENT_SECRET`, `MELI_REDIRECT_URI`
-5. Redeploy. Home → Autorizar. Copiá `MELI_ACCESS_TOKEN` al `.env` local.
+## Uso
+
+Home del dominio → Autorizar → copiá `MELI_ACCESS_TOKEN` (`APP_USR-...`) al `.env` de rental-scout. Guardá también `MELI_REFRESH_TOKEN` (el access dura ~6 h).
