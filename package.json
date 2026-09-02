@@ -3,6 +3,6 @@
   "private": true,
   "description": "Vercel sirve solo el callback OAuth de Mercado Libre. El buscador Python corre en local.",
   "engines": {
-    "node": ">=18"
+    "node": "20.x"
   }
 }

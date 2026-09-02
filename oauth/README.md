@@ -7,7 +7,7 @@ La doc de [OAuth de Mercado Pago](https://www.mercadopago.com.ar/developers/es/d
 - Autorizar: `https://auth.mercadolibre.com.ar/authorization`
 - Canje: `POST https://api.mercadolibre.com/oauth/token`
 
-El `pyproject.toml` del buscador hace que Vercel crea que el repo es Python. Por eso el deploy vive en la **raíz** del repo (`api/`, `lib/`, `public/`, `vercel.json` con `"framework": null`), no en un subdirectorio.
+El `pyproject.toml` del buscador hace que Vercel crea que el repo es Python. El deploy vive en la **raíz** (`api/`, `index.html`, `vercel.json` con `"framework": null`). En Settings, **Output Directory** tiene que estar vacío.
 
 ## Redirect URI
 
