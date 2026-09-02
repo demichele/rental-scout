@@ -88,7 +88,8 @@ module.exports = async (req, res) => {
 <label for="refresh">MELI_REFRESH_TOKEN</label>
 <textarea id="refresh" readonly>${escapeHtml(refresh)}</textarea>
 <p>expires_in=${escapeHtml(expires)}s · user_id=${escapeHtml(token.user_id || "")} · scope=${escapeHtml(token.scope || "")}</p>
-<p><a href="/">Autorizar de nuevo</a></p>`,
+<p class="muted">Si no viste la pantalla de “asociar aplicación”, Mercado Libre reutilizó el grant anterior. Para autorizar de cero: <a href="/">revocá y volvé a autorizar</a>.</p>
+<p><a class="button" href="/">Volver</a> · <a href="/api/start?reauth=1">Cerrar sesión y autorizar</a></p>`,
       }),
       clear,
     );

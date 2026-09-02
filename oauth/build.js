@@ -52,6 +52,7 @@ mkdirp(path.join(out, "static"));
 fs.copyFileSync(path.join(root, "index.html"), path.join(out, "static", "index.html"));
 bundleApi("start");
 bundleApi("callback");
+bundleApi("revoke");
 write(
   path.join(out, "config.json"),
   `${JSON.stringify(
@@ -61,6 +62,7 @@ write(
         { handle: "filesystem" },
         { src: "/api/start", dest: "/api/start" },
         { src: "/api/callback", dest: "/api/callback" },
+        { src: "/api/revoke", dest: "/api/revoke" },
       ],
     },
     null,
@@ -68,4 +70,4 @@ write(
   )}\n`,
 );
 
-console.log("Wrote .vercel/output (static + /api/start + /api/callback)");
+console.log("Wrote .vercel/output (static + /api/start + /api/callback + /api/revoke)");

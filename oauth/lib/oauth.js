@@ -1,5 +1,7 @@
 const AUTH_URL = "https://auth.mercadolibre.com.ar/authorization";
 const TOKEN_URL = "https://api.mercadolibre.com/oauth/token";
+const USERS_ME_URL = "https://api.mercadolibre.com/users/me";
+const LOGOUT_URL = "https://www.mercadolibre.com/jms/mla/lgz/logout";
 const STATE_COOKIE = "meli_oauth_state";
 
 function requiredEnv(name) {
@@ -142,9 +144,68 @@ function authorizationUrl(state) {
   return url.toString();
 }
 
+function logoutThenAuthorizeUrl(state) {
+  const url = new URL(LOGOUT_URL);
+  url.searchParams.set("go", authorizationUrl(state));
+  return url.toString();
+}
+
+function applicationsUrl(userId) {
+  return `https://api.mercadolibre.com/users/${userId}/applications/${clientId()}`;
+}
+
+async function revokeGrant(accessToken) {
+  const token = String(accessToken || "").trim();
+  if (!token) {
+    const err = new Error("Pegá el MELI_ACCESS_TOKEN actual para revocar el grant.");
+    err.statusCode = 400;
+    throw err;
+  }
+  const me = await fetch(USERS_ME_URL, {
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  const meBody = await me.json().catch(() => ({}));
+  if (!me.ok) {
+    const err = new Error(
+      meBody.message ||
+        meBody.error_description ||
+        `Mercado Libre rechazó el token (HTTP ${me.status}). Si ya expiró, revocalo a mano en developers.mercadolibre.com.ar → tu app → Administrar permisos.`,
+    );
+    err.statusCode = me.status >= 400 ? me.status : 400;
+    throw err;
+  }
+  const userId = meBody.id;
+  if (userId == null || userId === "") {
+    const err = new Error("/users/me no devolvió user id");
+    err.statusCode = 502;
+    throw err;
+  }
+  const del = await fetch(applicationsUrl(userId), {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+  });
+  const delBody = await del.json().catch(() => ({}));
+  if (!del.ok) {
+    const err = new Error(
+      delBody.message ||
+        delBody.msg ||
+        delBody.error_description ||
+        `No se pudo revocar el grant (HTTP ${del.status}).`,
+    );
+    err.statusCode = del.status >= 400 ? del.status : 400;
+    throw err;
+  }
+  return { userId: String(userId), appId: clientId() };
+}
+
 module.exports = {
   STATE_COOKIE,
+  AUTH_URL,
+  LOGOUT_URL,
+  USERS_ME_URL,
   authorizationUrl,
+  logoutThenAuthorizeUrl,
+  applicationsUrl,
   cookieHeader,
   clearCookieHeader,
   isSecureRequest,
@@ -152,5 +213,7 @@ module.exports = {
   escapeHtml,
   page,
   exchangeCode,
+  revokeGrant,
   redirectUri,
+  clientId,
 };

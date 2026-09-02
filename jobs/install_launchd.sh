@@ -37,7 +37,8 @@ if ! mkdir "\$LOCK" 2>/dev/null; then
 fi
 trap 'rmdir "\$LOCK" 2>/dev/null || true' EXIT
 cd "\$HOME"
-exec $(printf '%q' "$PYTHON") -m jobs.run_once
+# sin exec: si reemplazamos el shell, el trap nunca borra el lock
+$(printf '%q' "$PYTHON") -m jobs.run_once
 EOF
 chmod +x "$WRAPPER"
 

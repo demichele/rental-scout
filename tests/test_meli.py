@@ -11,6 +11,7 @@ from src.adapters.meli import (
     CATEGORY_HOUSES_RENT,
     CITY_TIGRE,
     SEARCH_URL,
+    USERS_ME_URL,
     USER_AGENT,
     fetch_listings,
     listings_from_search,
@@ -130,6 +131,7 @@ def test_fetch_listings_uses_public_search_and_fixture() -> None:
     client.get.assert_called_once()
     args, kwargs = client.get.call_args
     assert args[0] == SEARCH_URL
+    assert args[0] != USERS_ME_URL
     assert kwargs["params"]["category"] == CATEGORY_HOUSES_RENT
     assert kwargs["params"]["city"] == CITY_TIGRE
     assert kwargs["headers"]["User-Agent"] == USER_AGENT

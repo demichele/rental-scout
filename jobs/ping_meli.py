@@ -1,4 +1,8 @@
-"""Valida la conexión OAuth con Mercado Libre, sin DB ni Telegram."""
+"""Valida el token OAuth de Mercado Libre.
+
+No corre el scout: sin DB, sin Telegram, sin paginar listings.
+Usalo antes de `jobs.run_once` o cuando el adapter MELI loguee 401/403.
+"""
 
 from pathlib import Path
 

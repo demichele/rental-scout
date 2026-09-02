@@ -19,4 +19,5 @@ if [[ ! -x "$ROOT/venv/bin/python" ]]; then
   exit 1
 fi
 
-exec "$ROOT/venv/bin/python" -m jobs.run_once
+# sin exec: si reemplazamos el shell, el trap nunca borra el lock
+"$ROOT/venv/bin/python" -m jobs.run_once

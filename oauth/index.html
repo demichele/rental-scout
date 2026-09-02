@@ -7,10 +7,16 @@
   <style>
     body { font: 16px/1.45 system-ui, sans-serif; max-width: 42rem; margin: 2.5rem auto; padding: 0 1.25rem; }
     h1 { font-size: 1.35rem; }
-    a.button { display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 0.65rem 1rem; border-radius: 6px; }
-    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
-    .box { background: #f4f4f5; border-radius: 8px; padding: 0.9rem 1rem; }
+    a.button, button { display: inline-block; background: #111; color: #fff; text-decoration: none; padding: 0.65rem 1rem; border-radius: 6px; border: 0; font: inherit; cursor: pointer; }
+    a.button.secondary { background: #fff; color: #111; border: 1px solid #111; }
+    code, input, textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.9em; }
+    input[type="password"] { width: 100%; padding: 0.55rem; box-sizing: border-box; margin: 0.4rem 0 0.75rem; }
+    .box { background: #f4f4f5; border-radius: 8px; padding: 0.9rem 1rem; margin: 1rem 0; }
+    .warn { background: #fff7ed; }
     ol { padding-left: 1.2rem; }
+    label { font-weight: 600; }
+    p.muted { color: #555; font-size: 0.95rem; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0; }
   </style>
 </head>
 <body>
@@ -22,12 +28,27 @@
     <p><code>https://ESTE-DOMINIO/api/callback</code></p>
     <p>Sin slash al final. El mismo valor va en la env <code>MELI_REDIRECT_URI</code> de Vercel.</p>
   </div>
+  <div class="box warn">
+    <p><strong>Si ya autorizaste una vez</strong>, Mercado Libre no vuelve a pedir consentimiento: te redirige y emite un token con el <em>mismo</em> grant. Eso no es la autorización de la primera vez, y no cambia permisos (si el search da 403, un token nuevo igual va a dar 403).</p>
+    <p class="muted">Para autorizar de cero: revocá el grant (formulario abajo o Administrar permisos en la app) y después iniciá sesión de nuevo.</p>
+  </div>
   <ol>
     <li>Creá la app en Mercado Libre con esa URI.</li>
     <li>Cargá <code>MELI_CLIENT_ID</code>, <code>MELI_CLIENT_SECRET</code> y <code>MELI_REDIRECT_URI</code> en Vercel.</li>
     <li>Autorizá con <strong>tu</strong> usuario (cuenta principal, no colaborador).</li>
     <li>Copiá <code>MELI_ACCESS_TOKEN</code> al <code>.env</code> de rental-scout.</li>
+    <li>Validá con <code>python -m jobs.ping_meli</code> (no con el scout).</li>
   </ol>
-  <p><a class="button" href="/api/start">Autorizar con Mercado Libre</a></p>
+  <div class="actions">
+    <a class="button" href="/api/start">Autorizar con Mercado Libre</a>
+    <a class="button secondary" href="/api/start?reauth=1">Cerrar sesión y autorizar</a>
+  </div>
+  <p class="muted">“Cerrar sesión y autorizar” te saca de Mercado Libre y después pide login. Si la app sigue autorizada, igual puede saltarse el consentimiento: usá el formulario.</p>
+  <form method="post" action="/api/revoke">
+    <label for="token">Revocar grant y autorizar de nuevo</label>
+    <p class="muted">Pegá el <code>MELI_ACCESS_TOKEN</code> actual (el que está en <code>.env</code>). Se manda a tu función de Vercel, no se guarda, y después arranca OAuth como la primera vez.</p>
+    <input id="token" name="token" type="password" autocomplete="off" placeholder="APP_USR-..." required>
+    <button type="submit">Revocar y autorizar</button>
+  </form>
 </body>
 </html>

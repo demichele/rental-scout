@@ -166,7 +166,7 @@ class ConnectionCheck:
 
 
 def check_connection(*, client: httpx.Client | None = None) -> ConnectionCheck:
-    """GET /users/me y un search limit=1. No pagina, no mapea Listing."""
+    """Valida el token (GET /users/me + search limit=1). Lo usa jobs.ping_meli, no fetch_listings."""
     token = _meli_access_token()
     if not token:
         return ConnectionCheck(

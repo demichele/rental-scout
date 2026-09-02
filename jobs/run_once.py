@@ -79,6 +79,8 @@ def run(
             listings.extend(fetch(prefs))
         except Exception as exc:
             log.warning("adapter %s failed: %s", name, exc)
+            if "meli" in name.lower():
+                log.warning("MELI: validá el token con python -m jobs.ping_meli")
             print(f"WARN {name}: {exc}")
 
     fetched = len(listings)

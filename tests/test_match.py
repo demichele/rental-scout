@@ -281,12 +281,33 @@ def test_run_continues_if_one_adapter_fails(db_path: Path, prefs) -> None:
     assert stats.upserted == 1
 
 
-def test_enabled_adapters_defaults_to_zonaprop_only(prefs) -> None:
-    from jobs.run_once import _available_fetchers
+def test_meli_fetch_failure_hints_ping_meli(db_path: Path, prefs, caplog) -> None:
+    def boom(_prefs=None, **_kwargs):
+        raise RuntimeError("HTTP 403")
 
-    assert prefs.enabled_adapters == ["zonaprop"]
-    modules = [fetch.__module__ for fetch in _available_fetchers(prefs)]
-    assert modules == ["src.adapters.zonaprop"]
+    boom.__module__ = "src.adapters.meli"
+    listing = make_listing(external_id="ok", raw_hash="ok")
+    with caplog.at_level("WARNING"):
+        stats = run(
+            prefs=prefs,
+            fetchers=[boom, _fake_fetch([listing])],
+            db_path=db_path,
+            dry_run=True,
+        )
+    assert stats.fetched == 1
+    assert any("ping_meli" in rec.message for rec in caplog.records)
+
+
+def test_enabled_adapters_includes_zonaprop_and_meli(prefs) -> None:
+    from jobs.run_once import _available_fetchers
+    from src.adapters.meli import check_connection
+
+    assert prefs.enabled_adapters == ["zonaprop", "meli"]
+    fetchers = _available_fetchers(prefs)
+    modules = [fetch.__module__ for fetch in fetchers]
+    assert modules == ["src.adapters.zonaprop", "src.adapters.meli"]
+    assert all(fetch.__name__ == "fetch_listings" for fetch in fetchers)
+    assert check_connection not in fetchers
 
 
 def test_dry_run_then_live_sends_new_for_unnotified_match(

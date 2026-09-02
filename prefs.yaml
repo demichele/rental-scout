@@ -9,6 +9,7 @@ max_price_usd: 2500
 watch_max_price_usd: 3500
 min_drop_usd: 50
 min_drop_pct: 0.03
-# meli / argenprop: 403 por ahora. Reactivar acá cuando anden.
+# argenprop: 403 WAF. El token MELI se valida aparte: python -m jobs.ping_meli
 enabled_adapters:
   - zonaprop
+  - meli

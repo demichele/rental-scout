@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const {
   authorizationUrl,
+  logoutThenAuthorizeUrl,
   cookieHeader,
   isSecureRequest,
   escapeHtml,
@@ -9,10 +10,12 @@ const {
 
 module.exports = (req, res) => {
   try {
+    const url = new URL(req.url, `https://${req.headers.host}`);
+    const reauth = url.searchParams.get("reauth") === "1";
     const state = crypto.randomBytes(16).toString("hex");
     res.setHeader("Set-Cookie", cookieHeader(state, { secure: isSecureRequest(req) }));
     res.setHeader("Cache-Control", "no-store");
-    res.redirect(302, authorizationUrl(state));
+    res.redirect(302, reauth ? logoutThenAuthorizeUrl(state) : authorizationUrl(state));
   } catch (err) {
     const { status, html } = page({
       title: "OAuth MELI",
