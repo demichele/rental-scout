@@ -1,0 +1,11 @@
+# 4 dormitorios ≠ 4 ambientes; 4 dormitorios ≈ 5+ ambientes.
+locality: General Pacheco
+gated_only: true
+min_bedrooms: 4
+require_pool: true
+property_type: house
+min_price_usd: 1500
+max_price_usd: 2500
+watch_max_price_usd: 3500
+min_drop_usd: 50
+min_drop_pct: 0.03

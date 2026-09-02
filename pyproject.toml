@@ -1,0 +1,24 @@
+[project]
+name = "rental-scout"
+version = "0.1.0"
+description = "Buscador de alquileres en General Pacheco (Tigre, GBA Norte)"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2",
+    "httpx",
+    "python-dotenv",
+    "PyYAML",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["src*", "jobs*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
