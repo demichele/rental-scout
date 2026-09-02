@@ -9,3 +9,6 @@ max_price_usd: 2500
 watch_max_price_usd: 3500
 min_drop_usd: 50
 min_drop_pct: 0.03
+# meli / argenprop: 403 por ahora. Reactivar acá cuando anden.
+enabled_adapters:
+  - zonaprop

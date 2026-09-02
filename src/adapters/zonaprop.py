@@ -22,6 +22,7 @@ import json
 import logging
 import re
 import time
+from collections import Counter
 from datetime import datetime
 from typing import Any
 from urllib.parse import urljoin
@@ -44,10 +45,21 @@ MAX_PAGES = 5
 # SERP HTML. robots.txt permite pág. 1 y pagina-2..5; no /avisos-api/.
 SEARCH_PATH = "/casas-alquiler-general-pacheco.html"
 
-_HOUSE_TYPES = {"casa", "house", "chalet", "dúplex", "duplex", "tríplex", "triplex", "cabaña", "cabana"}
+_HOUSE_TYPES = {
+    "casa",
+    "casas",
+    "house",
+    "chalet",
+    "dúplex",
+    "duplex",
+    "tríplex",
+    "triplex",
+    "cabaña",
+    "cabana",
+}
 _NOT_HOUSE = {"departamento", "depto", "apartamento", "apartment", "ph", "local", "oficina", "terreno"}
 _GATED_RE = re.compile(
-    r"barrio\s+(?:privado|cerrado)|country\s+club|\bcountry\b|acceso\s+controlado",
+    r"barrio\s+(?:privado|cerrado)|country\s+club|\bcountry\b|golf\s+club|acceso\s+controlado",
     re.IGNORECASE,
 )
 _POOL_RE = re.compile(r"\b(?:pileta|piscina)\b", re.IGNORECASE)
@@ -97,11 +109,17 @@ def listings_from_search(payload: dict[str, Any], prefs: Prefs | None = None) ->
     prefs = prefs or load_prefs()
     listings: list[Listing] = []
     seen: set[str] = set()
+    skipped: Counter[str] = Counter()
     for item in _postings(payload):
         if not isinstance(item, dict):
+            skipped["not_object"] += 1
             continue
-        listing = _map_item(item, prefs)
-        if listing is None or listing.external_id in seen:
+        listing, reason = _try_map_item(item, prefs)
+        if listing is None:
+            skipped[reason or "dropped"] += 1
+            continue
+        if listing.external_id in seen:
+            skipped["duplicate"] += 1
             continue
         seen.add(listing.external_id)
         listings.append(listing)
@@ -110,6 +128,11 @@ def listings_from_search(payload: dict[str, Any], prefs: Prefs | None = None) ->
         len(listings),
         len(_postings(payload)),
     )
+    if skipped:
+        log.info(
+            "zonaprop skipped %s",
+            " ".join(f"{name}={count}" for name, count in skipped.most_common()),
+        )
     return listings
 
 
@@ -134,15 +157,21 @@ def _fetch_search(prefs: Prefs, *, client: httpx.Client | None) -> dict[str, Any
                 follow_redirects=True,
             )
             if _is_blocked(response):
-                raise FetchNotAllowed("ZonaProp bloqueó el GET (WAF/captcha/HTTP)")
+                if _page == 0:
+                    raise FetchNotAllowed("ZonaProp bloqueó el GET (WAF/captcha/HTTP)")
+                log.warning("ZonaProp WAF en página %s; se usan las %s anteriores", _page + 1, _page)
+                break
             response.raise_for_status()
             try:
                 payload = _parse_preloaded(response.text)
             except ValueError as exc:
-                raise FetchNotAllowed(
-                    "la respuesta no trae __PRELOADED_STATE__ "
-                    "(WAF/JS; guardá tests/fixtures/zonaprop.html a mano)"
-                ) from exc
+                if _page == 0:
+                    raise FetchNotAllowed(
+                        "la respuesta no trae __PRELOADED_STATE__ "
+                        "(WAF/JS; guardá tests/fixtures/zonaprop.html a mano)"
+                    ) from exc
+                log.warning("ZonaProp sin PRELOADED_STATE en página %s; se usan las anteriores", _page + 1)
+                break
             if _page == 0:
                 merged = {**payload}
                 store = dict(merged.get("listStore") or {})
@@ -232,31 +261,36 @@ def _next_page_url(payload: dict[str, Any]) -> str | None:
 
 
 def _map_item(item: dict[str, Any], prefs: Prefs) -> Listing | None:
+    listing, _reason = _try_map_item(item, prefs)
+    return listing
+
+
+def _try_map_item(item: dict[str, Any], prefs: Prefs) -> tuple[Listing | None, str | None]:
     external_id = str(item.get("postingId") or item.get("id") or "").strip()
     if not external_id:
-        return None
+        return None, "no_id"
     if not _is_house(item, prefs):
-        return None
+        return None, "not_house"
     if not _is_pacheco(item):
-        return None
+        return None, "not_pacheco"
 
     bedrooms = _feature_int(item, "dormitorio", "habitacion", "habitación")
     rooms = _feature_int(item, "ambiente")
     if not _enough_bedrooms(bedrooms, rooms, prefs.min_bedrooms):
-        return None
+        return None, "bedrooms"
 
     is_gated = _is_gated(item)
     if prefs.gated_only and not is_gated:
-        return None
+        return None, "not_gated"
 
     has_pool = _has_pool(item)
     if prefs.require_pool and not has_pool:
-        return None
+        return None, "no_pool"
 
     currency, price = _price(item)
     price_usd = price if currency == "USD" else None
     if price_usd is not None and price_usd > prefs.watch_max_price_usd:
-        return None
+        return None, "over_watch"
 
     loc = _posting_location(item)
     barrio = _nested_str(loc, "location", "name") if loc else None
@@ -282,7 +316,7 @@ def _map_item(item: dict[str, Any], prefs: Prefs) -> Listing | None:
         lat=_coord(item, "latitude"),
         lng=_coord(item, "longitude"),
         raw_hash=_raw_hash(item),
-    )
+    ), None
 
 
 def _is_house(item: dict[str, Any], prefs: Prefs) -> bool:
@@ -290,12 +324,16 @@ def _is_house(item: dict[str, Any], prefs: Prefs) -> bool:
     if wanted not in {"house", "casa"}:
         return False
     prop = (_nested_str(item, "realEstateType", "name") or "").lower()
-    if prop in _NOT_HOUSE:
+    if _singular_type(prop) in _NOT_HOUSE or prop in _NOT_HOUSE:
         return False
-    if prop in _HOUSE_TYPES:
+    if prop in _HOUSE_TYPES or _singular_type(prop) in _HOUSE_TYPES:
+        return True
+    house = item.get("house")
+    if isinstance(house, dict) and str(house.get("type") or "").lower() == "house":
         return True
     title = _title(item, "").lower()
-    return "casa" in title and "departamento" not in title
+    generated = str(item.get("generatedTitle") or "").lower()
+    return ("casa" in title or generated.startswith("casa")) and "departamento" not in title
 
 
 def _enough_bedrooms(bedrooms: int | None, rooms: int | None, min_bedrooms: int) -> bool:
@@ -322,14 +360,29 @@ def _evidence_blob(item: dict[str, Any]) -> str:
     parts = [
         _title(item, ""),
         item.get("description"),
+        item.get("descriptionNormalized"),
+        item.get("generatedTitle"),
         _location_text(item),
     ]
+    house = item.get("house")
+    if isinstance(house, dict):
+        parts.append(house.get("name"))
+        addr = house.get("address")
+        if isinstance(addr, dict):
+            parts.append(addr.get("name"))
     for label, value in _iter_features(item):
         parts.append(label)
         parts.append(value)
     for extra in item.get("highlightedFeatures") or []:
         parts.append(extra)
     return " ".join(str(p) for p in parts if p)
+
+
+def _singular_type(name: str) -> str:
+    text = name.strip().lower()
+    if text.endswith("s") and text[:-1] in _HOUSE_TYPES | _NOT_HOUSE:
+        return text[:-1]
+    return text
 
 
 def _location_text(item: dict[str, Any]) -> str:
@@ -416,13 +469,18 @@ def _price(item: dict[str, Any]) -> tuple[str, float]:
                 amount = float(price["amount"])
             except (TypeError, ValueError):
                 continue
-            currency = _normalize_currency(price.get("currencyId") or price.get("currency"))
+            currency = _normalize_currency(price.get("currency") or price.get("currencyId"))
             return currency, amount
     return "USD", 0.0
 
 
+_CURRENCY_IDS = {"1": "ARS", "2": "USD"}
+
+
 def _normalize_currency(raw: Any) -> str:
     text = str(raw or "").strip().upper()
+    if text in _CURRENCY_IDS:
+        return _CURRENCY_IDS[text]
     if text in {"USD", "U$S", "US$", "U$D"}:
         return "USD"
     if text in {"ARS", "$", "AR$"}:

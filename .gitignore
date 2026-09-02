@@ -10,3 +10,5 @@ __pycache__/
 *.sqlite3
 .sqlite
 data/*.db
+data/*.lock
+data/logs/

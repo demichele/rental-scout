@@ -10,6 +10,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from src.db import (
+    UpsertResult,
     already_notified_drop,
     already_notified_new,
     record_notification,
@@ -17,7 +18,7 @@ from src.db import (
 )
 from src.match import is_drop, is_match, is_watch
 from src.models import Listing
-from src.notify_telegram import send_new, send_price_drop
+from src.notify_telegram import TelegramConfigError, require_credentials, send_new, send_price_drop
 from src.prefs import Prefs, load_prefs
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -34,18 +35,29 @@ class RunStats:
     drop_notified: int
 
 
-def _available_fetchers() -> list[Fetcher]:
-    from src.adapters import meli
+KNOWN_ADAPTERS = ("zonaprop", "meli", "argenprop")
 
-    fetchers: list[Fetcher] = [meli.fetch_listings]
-    for name in ("zonaprop", "argenprop"):
+
+def _available_fetchers(prefs: Prefs) -> list[Fetcher]:
+    names = [name.strip() for name in prefs.enabled_adapters if name.strip()]
+    if not names:
+        log.warning("enabled_adapters está vacío; no se consulta ningún portal")
+        return []
+    fetchers: list[Fetcher] = []
+    for name in names:
+        if name not in KNOWN_ADAPTERS:
+            log.warning("adapter desconocido %s (conocidos: %s)", name, ", ".join(KNOWN_ADAPTERS))
+            continue
         try:
             module = importlib.import_module(f"src.adapters.{name}")
         except ImportError:
+            log.warning("adapter %s no está instalado", name)
             continue
         fetch = getattr(module, "fetch_listings", None)
         if callable(fetch):
             fetchers.append(fetch)
+        else:
+            log.warning("adapter %s no expone fetch_listings", name)
     return fetchers
 
 
@@ -57,7 +69,8 @@ def run(
     dry_run: bool = False,
 ) -> RunStats:
     prefs = prefs or load_prefs()
-    fetchers = list(fetchers) if fetchers is not None else _available_fetchers()
+    fetchers = list(fetchers) if fetchers is not None else _available_fetchers(prefs)
+    log.info("adapters: %s", ", ".join(prefs.enabled_adapters) or "(ninguno)")
 
     listings: list[Listing] = []
     for fetch in fetchers:
@@ -80,13 +93,7 @@ def run(
         result = upsert_listing(listing, db_path=db_path)
         upserted += 1
 
-        if (
-            result.created
-            and is_match(listing, prefs)
-            and not already_notified_new(
-                listing.source, listing.external_id, db_path=db_path
-            )
-        ):
+        if _should_notify_new(result, listing, prefs, db_path):
             if not dry_run:
                 send_new(listing)
                 record_notification(
@@ -137,6 +144,25 @@ def run(
     return stats
 
 
+def _should_notify_new(
+    result: UpsertResult,
+    listing: Listing,
+    prefs: Prefs,
+    db_path: Path | None,
+) -> bool:
+    """NUEVA si califica y nunca se avisó. Un dry-run no debe silenciar el primer envío.
+
+    Si el precio cambió, el caso es BAJÓ (entrar al rango), no un extra NUEVA.
+    """
+    if not is_match(listing, prefs):
+        return False
+    if already_notified_new(listing.source, listing.external_id, db_path=db_path):
+        return False
+    if not result.created and result.price_changed:
+        return False
+    return True
+
+
 def main(argv: list[str] | None = None) -> None:
     load_dotenv(PROJECT_ROOT / ".env")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
@@ -147,6 +173,11 @@ def main(argv: list[str] | None = None) -> None:
         help="Fetch y upsert; no envía Telegram ni registra notificaciones",
     )
     args = parser.parse_args(argv)
+    if not args.dry_run:
+        try:
+            require_credentials()
+        except TelegramConfigError as exc:
+            raise SystemExit(f"{exc}. Copiá .env.example a .env y completá Telegram.") from exc
     stats = run(dry_run=args.dry_run)
     print(
         f"fetched={stats.fetched} upserted={stats.upserted} "

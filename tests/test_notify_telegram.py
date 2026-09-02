@@ -37,6 +37,9 @@ def make_listing(**overrides) -> Listing:
 
 def _ok_response() -> MagicMock:
     response = MagicMock()
+    response.status_code = 200
+    response.is_error = False
+    response.text = ""
     response.raise_for_status.return_value = None
     response.json.return_value = {"ok": True, "result": {"message_id": 1}}
     return response
@@ -74,7 +77,10 @@ def test_send_new_posts_listing_fields(telegram_http) -> None:
     assert "Dormitorios: 4" in text
     assert "Pileta: sí" in text
     assert "Precio: 2200 USD" in text
+    assert "Ver anuncio" in text
     assert "https://example.com/MLA123" in text
+    assert payload["parse_mode"] == "HTML"
+    assert payload["link_preview_options"]["url"] == "https://example.com/MLA123"
     assert "Por qué califica:" in text
     assert "barrio cerrado" in text
     assert "4+ dormitorios" in text
@@ -92,6 +98,7 @@ def test_send_price_drop_includes_delta(telegram_http) -> None:
     assert "Dormitorios: 4" in text
     assert "Pileta: sí" in text
     assert "Precio: 2000 USD" in text
+    assert "Ver anuncio" in text
     assert "https://example.com/MLA123" in text
     assert "antes 2300 → ahora 2000 (Δ -300 USD)" in text
     assert "Por qué califica:" in text
@@ -118,6 +125,13 @@ def test_missing_env_does_not_call_httpx(monkeypatch) -> None:
         send_new(make_listing())
 
     mock_post.assert_not_called()
+
+
+def test_require_credentials_uses_same_env(telegram_http) -> None:
+    from src.notify_telegram import require_credentials
+
+    require_credentials()
+    telegram_http.assert_not_called()
 
 
 def test_telegram_ok_false_raises(telegram_http) -> None:

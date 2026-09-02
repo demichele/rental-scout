@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from html import escape
 
 import httpx
 
@@ -17,12 +18,12 @@ class TelegramConfigError(RuntimeError):
 
 def send_new(listing: Listing) -> None:
     prefs = load_prefs()
-    _send(_format_new(listing, prefs))
+    _send(_format_new(listing, prefs), preview_url=listing.url)
 
 
 def send_price_drop(listing: Listing, old_usd: float, new_usd: float) -> None:
     prefs = load_prefs()
-    _send(_format_price_drop(listing, old_usd, new_usd, prefs))
+    _send(_format_price_drop(listing, old_usd, new_usd, prefs), preview_url=listing.url)
 
 
 def _credentials() -> tuple[str, str]:
@@ -41,6 +42,11 @@ def _credentials() -> tuple[str, str]:
             "El id del bot es la parte numérica del token; no lo uses como chat."
         )
     return token, chat_id
+
+
+def require_credentials() -> None:
+    """Falla si Telegram no está configurado. Para el job real, no el dry-run."""
+    _credentials()
 
 
 def _fmt_usd(value: float) -> str:
@@ -79,23 +85,36 @@ def _qualify_reasons(listing: Listing, prefs: Prefs, price_usd: float | None) ->
     return ", ".join(reasons) if reasons else "cumple el brief de búsqueda"
 
 
+def _html(text: str) -> str:
+    return escape(text, quote=False)
+
+
+def _anuncio_link(listing: Listing) -> str:
+    url = (listing.url or "").strip()
+    if url.startswith("http://") or url.startswith("https://"):
+        return f'<a href="{escape(url, quote=True)}">Ver anuncio</a>'
+    if url:
+        return f"Ver anuncio: {_html(url)}"
+    return "Ver anuncio: —"
+
+
 def _listing_block(listing: Listing, price_usd: float | None) -> list[str]:
     barrio = listing.barrio_name.strip() if listing.barrio_name else None
     bedrooms = listing.bedrooms if listing.bedrooms is not None else None
     price_line = f"{_fmt_usd(price_usd)} USD" if price_usd is not None else "—"
     return [
-        listing.title,
-        f"Barrio: {barrio or '—'}",
+        _html(listing.title),
+        f"Barrio: {_html(barrio or '—')}",
         f"Dormitorios: {bedrooms if bedrooms is not None else '—'}",
         f"Pileta: {'sí' if listing.has_pool else 'no'}",
         f"Precio: {price_line}",
-        listing.url,
+        _anuncio_link(listing),
     ]
 
 
 def _format_new(listing: Listing, prefs: Prefs) -> str:
     lines = ["NUEVA", "", *_listing_block(listing, listing.price_usd), ""]
-    lines.append(f"Por qué califica: {_qualify_reasons(listing, prefs, listing.price_usd)}")
+    lines.append(f"Por qué califica: {_html(_qualify_reasons(listing, prefs, listing.price_usd))}")
     return "\n".join(lines)
 
 
@@ -112,16 +131,24 @@ def _format_price_drop(
     if _entered_notify_range(old_usd, new_usd, prefs):
         lines.append(f"Entró al rango {_range_label(prefs)}")
     lines.append("")
-    lines.append(f"Por qué califica: {_qualify_reasons(listing, prefs, new_usd)}")
+    lines.append(f"Por qué califica: {_html(_qualify_reasons(listing, prefs, new_usd))}")
     return "\n".join(lines)
 
 
-def _send(text: str) -> None:
+def _send(text: str, *, preview_url: str | None = None) -> None:
     token, chat_id = _credentials()
     url = f"{TELEGRAM_API}/bot{token}/sendMessage"
+    payload: dict[str, object] = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "HTML",
+    }
+    preview = (preview_url or "").strip()
+    if preview.startswith("http://") or preview.startswith("https://"):
+        payload["link_preview_options"] = {"is_disabled": False, "url": preview}
     response = httpx.post(
         url,
-        json={"chat_id": chat_id, "text": text},
+        json=payload,
         timeout=SEND_TIMEOUT,
     )
     try:

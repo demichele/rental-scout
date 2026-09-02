@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import time
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -17,6 +18,7 @@ from src.prefs import Prefs, load_prefs
 
 SITE_ID = "MLA"
 SEARCH_URL = f"https://api.mercadolibre.com/sites/{SITE_ID}/search"
+USERS_ME_URL = "https://api.mercadolibre.com/users/me"
 CATEGORY_HOUSES_RENT = "MLA1467"
 CITY_TIGRE = "TUxBQ1RJRzk0ZjQw"
 USER_AGENT = "rental-scout personal"
@@ -149,6 +151,109 @@ def _request_headers() -> dict[str, str]:
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
+
+
+@dataclass(frozen=True)
+class ConnectionCheck:
+    """Resultado de validar el token MELI sin correr el scout."""
+
+    ok: bool
+    message: str
+    user_id: str | None = None
+    nickname: str | None = None
+    search_http: int | None = None
+    search_total: int | None = None
+
+
+def check_connection(*, client: httpx.Client | None = None) -> ConnectionCheck:
+    """GET /users/me y un search limit=1. No pagina, no mapea Listing."""
+    token = _meli_access_token()
+    if not token:
+        return ConnectionCheck(
+            ok=False,
+            message=(
+                "falta MELI_ACCESS_TOKEN en .env. Autorizá la app "
+                "(oauth/README.md) y pegá el access_token APP_USR-..."
+            ),
+        )
+    if not _looks_like_user_token(token):
+        return ConnectionCheck(
+            ok=False,
+            message=(
+                "MELI_ACCESS_TOKEN no parece access_token de usuario "
+                "(tiene que empezar con APP_USR-). No uses el Client Secret."
+            ),
+        )
+
+    owned = client is None
+    http = client or httpx.Client(timeout=REQUEST_TIMEOUT)
+    try:
+        me = http.get(
+            USERS_ME_URL,
+            headers=_request_headers(),
+            timeout=REQUEST_TIMEOUT,
+        )
+        if me.status_code in {401, 403}:
+            return ConnectionCheck(
+                ok=False,
+                message=_search_auth_error(me.status_code),
+            )
+        me.raise_for_status()
+        body: Any = {}
+        try:
+            parsed = me.json()
+            if isinstance(parsed, dict):
+                body = parsed
+        except ValueError:
+            body = {}
+        user_id = str(body.get("id") or "").strip() or None
+        nickname = str(body.get("nickname") or "").strip() or None
+
+        search = http.get(
+            SEARCH_URL,
+            params={**_search_params(0), "limit": 1},
+            headers=_request_headers(),
+            timeout=REQUEST_TIMEOUT,
+        )
+        if search.status_code in {401, 403}:
+            return ConnectionCheck(
+                ok=False,
+                user_id=user_id,
+                nickname=nickname,
+                search_http=search.status_code,
+                message=(
+                    f"token válido (/users/me) pero la búsqueda devolvió HTTP {search.status_code}. "
+                    + _search_auth_error(search.status_code)
+                ),
+            )
+        search.raise_for_status()
+        payload: Any = {}
+        try:
+            parsed_search = search.json()
+            if isinstance(parsed_search, dict):
+                payload = parsed_search
+        except ValueError:
+            payload = {}
+        paging = payload.get("paging") if isinstance(payload, dict) else {}
+        total = None
+        if isinstance(paging, dict) and paging.get("total") is not None:
+            try:
+                total = int(paging["total"])
+            except (TypeError, ValueError):
+                total = None
+        return ConnectionCheck(
+            ok=True,
+            user_id=user_id,
+            nickname=nickname,
+            search_http=search.status_code,
+            search_total=total,
+            message="ok: Mercado Libre aceptó el token y la búsqueda",
+        )
+    except httpx.HTTPError as exc:
+        return ConnectionCheck(ok=False, message=f"error de red contra Mercado Libre: {exc}")
+    finally:
+        if owned:
+            http.close()
 
 
 def _map_item(item: dict[str, Any], prefs: Prefs) -> Listing | None:

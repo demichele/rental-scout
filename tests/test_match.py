@@ -279,3 +279,55 @@ def test_run_continues_if_one_adapter_fails(db_path: Path, prefs) -> None:
     )
     assert stats.fetched == 1
     assert stats.upserted == 1
+
+
+def test_enabled_adapters_defaults_to_zonaprop_only(prefs) -> None:
+    from jobs.run_once import _available_fetchers
+
+    assert prefs.enabled_adapters == ["zonaprop"]
+    modules = [fetch.__module__ for fetch in _available_fetchers(prefs)]
+    assert modules == ["src.adapters.zonaprop"]
+
+
+def test_dry_run_then_live_sends_new_for_unnotified_match(
+    db_path: Path, prefs, monkeypatch
+) -> None:
+    sent: list[tuple] = []
+    monkeypatch.setattr(
+        "jobs.run_once.send_new", lambda listing: sent.append(("new", listing.price_usd))
+    )
+    monkeypatch.setattr(
+        "jobs.run_once.send_price_drop",
+        lambda listing, old_usd, new_usd: sent.append(("drop", old_usd, new_usd)),
+    )
+
+    dry = _run(
+        [make_listing(price=2200, price_usd=2200)],
+        db_path=db_path,
+        prefs=prefs,
+        dry_run=True,
+    )
+    assert dry.new_notified == 1
+    assert _count(db_path, "notifications") == 0
+    assert sent == []
+
+    live = _run(
+        [make_listing(price=2200, price_usd=2200)],
+        db_path=db_path,
+        prefs=prefs,
+        dry_run=False,
+    )
+    assert live.new_notified == 1
+    assert live.drop_notified == 0
+    assert sent == [("new", 2200)]
+    assert _count(db_path, "notifications") == 1
+
+
+def test_main_without_telegram_exits(monkeypatch) -> None:
+    monkeypatch.setattr("jobs.run_once.load_dotenv", lambda *args, **kwargs: None)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    from jobs.run_once import main
+
+    with pytest.raises(SystemExit, match="TELEGRAM"):
+        main([])

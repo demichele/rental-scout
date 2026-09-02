@@ -12,7 +12,7 @@ def _fake_listing(**overrides) -> Listing:
     data = {
         "source": "ping",
         "external_id": "PING-NEW",
-        "url": "https://example.com/ping-nueva",
+        "url": "https://www.zonaprop.com.ar/propiedades/clasificado/alclapin-ping-nueva.html",
         "title": "Casa 4 dorm con pileta en San Pablo",
         "locality": "General Pacheco",
         "barrio_name": "San Pablo",
@@ -47,7 +47,7 @@ def main() -> None:
         send_price_drop(
             _fake_listing(
                 external_id="PING-DROP",
-                url="https://example.com/ping-bajo",
+                url="https://www.zonaprop.com.ar/propiedades/clasificado/alclapin-ping-bajo.html",
                 title="[ping] Casa 4 dorm — bajó al rango",
                 price=2200,
                 price_usd=2200,

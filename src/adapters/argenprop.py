@@ -284,7 +284,10 @@ def _fetch_search(*, client: httpx.Client | None) -> list[dict[str, Any]]:
                 time.sleep(PAGE_DELAY_SEC)
             response = http.get(url, headers=_request_headers(), timeout=REQUEST_TIMEOUT)
             if _is_blocked(response):
-                raise FetchNotAllowed("Argenprop bloqueó el GET (WAF/captcha/HTTP)")
+                raise FetchNotAllowed(
+                    "Argenprop bloqueó el GET (WAF/captcha/HTTP). "
+                    "No se burla el challenge; guardá tests/fixtures/argenprop.html a mano."
+                )
             response.raise_for_status()
             html = response.text or ""
             try:

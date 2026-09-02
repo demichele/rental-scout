@@ -14,6 +14,7 @@ from src.adapters.zonaprop import (
     FetchNotAllowed,
     fetch_listings,
     listings_from_html,
+    listings_from_search,
     search_url,
 )
 from src.prefs import load_prefs
@@ -77,6 +78,7 @@ def test_fixture_maps_listings_with_stable_zonaprop_ids() -> None:
         assert listing.is_gated is True
         assert listing.has_pool is True
         assert listing.url
+        assert listing.url.startswith("https://www.zonaprop.com.ar/")
         assert listing.raw_hash
         assert listing.external_id == listing.external_id.strip()
 
@@ -206,11 +208,103 @@ def test_fetch_raises_on_waf_without_retry() -> None:
     assert client.get.call_count == 2
 
 
+def test_fetch_keeps_earlier_pages_if_later_waf() -> None:
+    prefs = load_prefs()
+    robots = MagicMock()
+    robots.status_code = 200
+    robots.headers = {}
+    robots.text = SAMPLE_ROBOTS
+    robots.raise_for_status.return_value = None
+
+    page = MagicMock()
+    page.status_code = 200
+    page.headers = {"content-type": "text/html"}
+    page.text = _html().replace(
+        '"pagesUrl": {}',
+        '"pagesUrl": {"nextPage": "/casas-alquiler-general-pacheco-pagina-2.html"}',
+    )
+    page.raise_for_status.return_value = None
+
+    blocked = MagicMock()
+    blocked.status_code = 403
+    blocked.headers = {"cf-mitigated": "challenge"}
+    blocked.text = "Just a moment..."
+
+    def fake_get(url, **kwargs):
+        if str(url) == ROBOTS_URL:
+            return robots
+        if "pagina-2" in str(url):
+            return blocked
+        return page
+
+    client = MagicMock()
+    client.get.side_effect = fake_get
+
+    listings = fetch_listings(prefs, client=client)
+    assert {listing.external_id for listing in listings} == KEEP_IDS
+
+
 def test_search_url_is_public_html_serp() -> None:
     url = search_url(watch_max_usd=3500)
     assert url == f"{BASE_URL}/casas-alquiler-general-pacheco.html"
     assert "avisos-api" not in url
     assert "menos-de-" not in url
+
+
+def test_live_schema_casas_plural_and_description_normalized() -> None:
+    """La SERP real usa realEstateType=Casas y evidencia en descriptionNormalized."""
+    payload = {
+        "listStore": {
+            "listPostings": [
+                {
+                    "postingId": "ZP-LIVE-1",
+                    "title": "Alquiler en El Encuentro",
+                    "description": "",
+                    "descriptionNormalized": (
+                        "Casa en barrio cerrado El Encuentro, General Pacheco, con pileta."
+                    ),
+                    "generatedTitle": "Casa · 270m² · 5 Ambientes",
+                    "url": "/propiedades/clasificado/alclapin-ZP-LIVE-1.html",
+                    "realEstateType": {"name": "Casas", "realEstateTypeId": "1"},
+                    "house": {"type": "House", "name": "Casa · 270m² · 5 Ambientes"},
+                    "priceOperationTypes": [
+                        {
+                            "prices": [
+                                {
+                                    "currencyId": "2",
+                                    "currency": "USD",
+                                    "amount": 2200,
+                                }
+                            ]
+                        }
+                    ],
+                    "mainFeatures": {
+                        "CFT2": {"label": "Ambientes", "value": "5"},
+                        "CFT3": {"label": "Dormitorios", "value": "4"},
+                    },
+                    "generalFeatures": {},
+                    "highlightedFeatures": [],
+                    "postingLocation": {
+                        "address": {"name": ""},
+                        "location": {
+                            "name": "El Encuentro",
+                            "parent": {"name": "General Pacheco"},
+                        },
+                    },
+                }
+            ]
+        }
+    }
+    listings = listings_from_search(payload, load_prefs())
+    assert len(listings) == 1
+    listing = listings[0]
+    assert listing.source == "zonaprop"
+    assert listing.external_id == "ZP-LIVE-1"
+    assert listing.is_gated is True
+    assert listing.has_pool is True
+    assert listing.bedrooms == 4
+    assert listing.currency == "USD"
+    assert listing.price_usd == 2200
 
 
 def test_optional_live_search() -> None:
