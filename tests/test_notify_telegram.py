@@ -72,7 +72,8 @@ def test_send_new_posts_listing_fields(telegram_http) -> None:
     payload = _payload(telegram_http)
     assert payload["chat_id"] == "12345"
     text = payload["text"]
-    assert text.startswith("NUEVA")
+    assert text.startswith("Casa en San Pablo por 2200 USD")
+    assert not text.startswith("NUEVA")
     assert "Casa en barrio cerrado" in text
     assert "Barrio: San Pablo" in text
     assert "Dormitorios: 4" in text

@@ -115,8 +115,23 @@ def _listing_block(listing: Listing, price_usd: float | None) -> list[str]:
     ]
 
 
+def _place(listing: Listing) -> str:
+    barrio = (listing.barrio_name or "").strip()
+    if barrio:
+        return barrio
+    locality = (listing.locality or "").strip()
+    return locality or "—"
+
+
+def _price_label(price_usd: float | None) -> str:
+    if price_usd is None:
+        return "—"
+    return f"{_fmt_usd(price_usd)} USD"
+
+
 def _format_new(listing: Listing, prefs: Prefs) -> str:
-    lines = ["NUEVA", "", *_listing_block(listing, listing.price_usd), ""]
+    headline = f"Casa en {_html(_place(listing))} por {_price_label(listing.price_usd)}"
+    lines = [headline, "", *_listing_block(listing, listing.price_usd), ""]
     lines.append(f"Por qué califica: {_html(_qualify_reasons(listing, prefs, listing.price_usd))}")
     return "\n".join(lines)
 
