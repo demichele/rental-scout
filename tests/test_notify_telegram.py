@@ -24,7 +24,7 @@ def make_listing(**overrides) -> Listing:
         "currency": "USD",
         "price": 2200,
         "price_usd": 2200,
-        "expenses": None,
+        "expenses": 150000,
         "property_type": "house",
         "published_at": None,
         "photos": ["https://example.com/1.jpg"],
@@ -77,8 +77,10 @@ def test_send_new_posts_listing_fields(telegram_http) -> None:
     assert "Casa en barrio cerrado" in text
     assert "Barrio: San Pablo" in text
     assert "Dormitorios: 4" in text
-    assert "Pileta: sí" in text
+    assert "Pileta:" not in text
+    assert "pileta" not in text.casefold()
     assert "Precio: 2200 USD" in text
+    assert "Expensas: $ 150.000" in text
     assert "Ver anuncio" in text
     assert "https://example.com/MLA123" in text
     assert payload["parse_mode"] == "HTML"
@@ -87,7 +89,6 @@ def test_send_new_posts_listing_fields(telegram_http) -> None:
     assert "barrio cerrado" in text
     assert "3+ dormitorios" in text
     assert "5+ ambientes" in text
-    assert "pileta" in text
     assert "1500–2500 USD" in text
 
 
@@ -99,8 +100,9 @@ def test_send_price_drop_includes_delta(telegram_http) -> None:
     assert "Casa en barrio cerrado" in text
     assert "Barrio: San Pablo" in text
     assert "Dormitorios: 4" in text
-    assert "Pileta: sí" in text
+    assert "Pileta:" not in text
     assert "Precio: 2000 USD" in text
+    assert "Expensas: $ 150.000" in text
     assert "Ver anuncio" in text
     assert "https://example.com/MLA123" in text
     assert "antes 2300 → ahora 2000 (Δ -300 USD)" in text
@@ -116,6 +118,14 @@ def test_send_price_drop_entered_range(telegram_http) -> None:
     assert "antes 3000 → ahora 2200 (Δ -800 USD)" in text
     assert f"Entró al rango {prefs.min_price_usd}–{prefs.max_price_usd} USD" in text
     assert "Entró al rango 1500–2500 USD" in text
+
+
+def test_send_new_expenses_missing_shows_dash(telegram_http) -> None:
+    send_new(make_listing(expenses=None))
+
+    text = _text(telegram_http)
+    assert "Expensas: —" in text
+    assert "Pileta:" not in text
 
 
 def test_missing_env_does_not_call_httpx(monkeypatch) -> None:

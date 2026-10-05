@@ -249,7 +249,10 @@ def test_fetch_keeps_earlier_pages_if_later_waf() -> None:
 def test_search_url_is_public_html_serp() -> None:
     prefs = load_prefs()
     paths = search_paths(prefs)
-    assert paths[0] == "/casas-alquiler-talar-del-lago-1.html"
+    assert paths[0] == "/casas-alquiler-talar-del-lago-i.html"
+    assert paths[1] == "/casas-alquiler-talar-del-lago-ii.html"
+    assert "/casas-alquiler-talar-del-lago-1.html" not in paths
+    assert "/casas-alquiler-talar-del-lago-2.html" not in paths
     assert "/casas-alquiler-nordelta.html" in paths
     assert "/casas-alquiler-los-alisos.html" in paths
     assert "/casas-alquiler-la-comarca.html" in paths
@@ -257,9 +260,65 @@ def test_search_url_is_public_html_serp() -> None:
     assert "/casas-alquiler-barrancas-de-santa-maria.html" in paths
     assert "/casas-alquiler-barrancas-de-san-jose.html" in paths
     url = search_url(watch_max_usd=2500, path=paths[0])
-    assert url == f"{BASE_URL}/casas-alquiler-talar-del-lago-1.html"
+    assert url == f"{BASE_URL}/casas-alquiler-talar-del-lago-i.html"
     assert "avisos-api" not in url
     assert "menos-de-" not in url
+
+
+def test_fetch_skips_serp_redirected_off_barrio() -> None:
+    prefs = load_prefs()
+    robots = MagicMock()
+    robots.status_code = 200
+    robots.headers = {}
+    robots.text = SAMPLE_ROBOTS
+    robots.raise_for_status.return_value = None
+
+    nationwide = MagicMock()
+    nationwide.status_code = 200
+    nationwide.headers = {"content-type": "text/html"}
+    nationwide.text = _html()
+    nationwide.url = httpx.URL(f"{BASE_URL}/casas-alquiler.html")
+    nationwide.raise_for_status.return_value = None
+
+    def fake_get(url, **kwargs):
+        if str(url) == ROBOTS_URL:
+            return robots
+        return nationwide
+
+    client = MagicMock()
+    client.get.side_effect = fake_get
+
+    with pytest.raises(FetchNotAllowed, match="ninguna SERP usable"):
+        fetch_listings(prefs, client=client)
+
+
+def test_fetch_keeps_on_barrio_serps_when_other_redirect() -> None:
+    prefs = load_prefs()
+    robots = MagicMock()
+    robots.status_code = 200
+    robots.headers = {}
+    robots.text = SAMPLE_ROBOTS
+    robots.raise_for_status.return_value = None
+
+    def fake_get(url, **kwargs):
+        if str(url) == ROBOTS_URL:
+            return robots
+        page = MagicMock()
+        page.status_code = 200
+        page.headers = {"content-type": "text/html"}
+        page.text = _html()
+        page.raise_for_status.return_value = None
+        if "talar-del-lago" in str(url):
+            page.url = httpx.URL(f"{BASE_URL}/casas-alquiler.html")
+        else:
+            page.url = httpx.URL(str(url))
+        return page
+
+    client = MagicMock()
+    client.get.side_effect = fake_get
+
+    listings = fetch_listings(prefs, client=client)
+    assert {listing.external_id for listing in listings} == KEEP_IDS
 
 
 def test_live_schema_casas_plural_and_description_normalized() -> None:
