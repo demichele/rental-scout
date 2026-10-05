@@ -2,7 +2,7 @@
 
 Buscador de alquileres en countries de Tigre / Pacheco. Corre por cron, persiste avisos y avisa por Telegram.
 
-Preferencias en YAML, modelo `Listing`, SQLite (`data/scout.db`) y avisos Telegram (`NUEVA` / `BAJÓ DE PRECIO`). Portal activo: **ZonaProp**. Barrios: Talar del Lago, Nordelta, Los Alisos, La Comarca, Barrancas de Santa Maria, Barrancas de San Jose, Santa Barbara. Tope **2500 USD**. Argenprop y Mercado Libre quedan apagados.
+Preferencias en YAML, modelo `Listing`, SQLite (`data/scout.db`) y avisos Telegram (`NUEVA` / `BAJÓ DE PRECIO`). Portal activo: **ZonaProp**. Barrios: Talar del Lago, Nordelta, Los Alisos, La Comarca, Barrancas de Santa Maria, Barrancas de San Jose, Santa Barbara. **3+ dormitorios, 5+ ambientes**, tope **2500 USD**. Sin filtro de pileta ni de “barrio cerrado” (esos countries ya lo son). Argenprop y Mercado Libre quedan apagados.
 
 ## Requisitos
 

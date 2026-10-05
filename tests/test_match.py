@@ -19,6 +19,7 @@ def make_listing(**overrides) -> Listing:
         "barrio_name": "La Comarca",
         "is_gated": True,
         "bedrooms": 4,
+        "ambientes": 5,
         "bathrooms": 3,
         "m2": 220.0,
         "has_pool": True,
@@ -72,15 +73,25 @@ def _count(db_path: Path, table: str) -> int:
         conn.close()
 
 
-def test_not_watch_three_bedrooms(prefs) -> None:
-    listing = make_listing(bedrooms=3)
-    assert is_watch(listing, prefs) is False
-    assert is_match(listing, prefs) is False
+def test_watch_three_bedrooms_if_five_ambientes(prefs) -> None:
+    listing = make_listing(bedrooms=3, ambientes=5)
+    assert is_watch(listing, prefs) is True
+    assert is_match(listing, prefs) is True
 
 
-def test_not_watch_no_pool(prefs) -> None:
-    listing = make_listing(has_pool=False)
+def test_not_watch_two_bedrooms(prefs) -> None:
+    listing = make_listing(bedrooms=2, ambientes=5)
     assert is_watch(listing, prefs) is False
+
+
+def test_not_watch_four_ambientes(prefs) -> None:
+    listing = make_listing(bedrooms=4, ambientes=4)
+    assert is_watch(listing, prefs) is False
+
+
+def test_watch_without_pool_or_gated_evidence(prefs) -> None:
+    listing = make_listing(has_pool=False, is_gated=False)
+    assert is_watch(listing, prefs) is True
 
 
 def test_not_watch_apartment(prefs) -> None:
@@ -261,8 +272,8 @@ def test_non_watch_listings_are_not_upserted(db_path: Path, prefs, monkeypatch) 
         "jobs.run_once.send_price_drop", lambda listing, old_usd, new_usd: None
     )
     listings = [
-        make_listing(external_id="a", bedrooms=3, raw_hash="a"),
-        make_listing(external_id="b", has_pool=False, raw_hash="b"),
+        make_listing(external_id="a", bedrooms=2, ambientes=5, raw_hash="a"),
+        make_listing(external_id="b", ambientes=4, raw_hash="b"),
         make_listing(external_id="c", property_type="depto", raw_hash="c"),
         make_listing(external_id="d", barrio_name="Tigre centro", locality="Tigre", title="Tigre centro", raw_hash="d"),
     ]

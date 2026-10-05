@@ -23,7 +23,9 @@ KEEP_IDS = {
     "AP900000001",  # USD 2200 en rango de notify
     "AP900000003",  # solo ambientes >= 5
     "AP900000004",  # ARS → price_usd None
-    "AP900000005",  # Villa Pacheco, gated/pileta por texto
+    "AP900000005",  # Villa Pacheco
+    "AP900000011",  # sin pileta
+    "AP900000012",  # no gated
 }
 
 DROP_IDS = {
@@ -31,10 +33,8 @@ DROP_IDS = {
     "AP900000006",  # USD 3500 > watch_max 2500
     "AP900000007",  # Nordelta
     "AP900000008",  # Tigre centro
-    "AP900000009",  # 3 dormitorios
-    "AP900000010",  # 4 ambientes ≠ 4 dormitorios
-    "AP900000011",  # sin pileta
-    "AP900000012",  # no gated
+    "AP900000009",  # 3 dormitorios y 4 ambientes
+    "AP900000010",  # 4 ambientes, sin dormitorios
     "AP900000013",  # USD 4000 > watch_max
     "AP900000014",  # departamento
 }
@@ -71,8 +71,6 @@ def test_fixture_maps_listings_with_stable_argenprop_ids() -> None:
         assert listing.source == "argenprop"
         assert listing.property_type == "house"
         assert listing.locality == "General Pacheco"
-        assert listing.is_gated is True
-        assert listing.has_pool is True
         assert listing.url
         assert listing.raw_hash
         assert listing.external_id == listing.external_id.strip()
@@ -113,14 +111,11 @@ def test_ars_without_fx_leaves_price_usd_none() -> None:
     assert listing.price_usd is None
 
 
-def test_pool_and_gated_need_evidence() -> None:
+def test_pool_and_gated_are_not_required() -> None:
     ids = {listing.external_id for listing in _listings()}
-    assert "AP900000011" not in ids
-    assert "AP900000012" not in ids
+    assert "AP900000011" in ids
+    assert "AP900000012" in ids
     assert "AP900000014" not in ids
-    text_evidence = _by_id()["AP900000005"]
-    assert text_evidence.is_gated is True
-    assert text_evidence.has_pool is True
 
 
 def test_fetch_listings_checks_robots_and_uses_html_serp() -> None:

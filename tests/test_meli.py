@@ -23,7 +23,9 @@ KEEP_IDS = {
     "MLA900000001",  # USD 2200 en rango de notify
     "MLA900000003",  # solo ambientes >= 5
     "MLA900000004",  # ARS → price_usd None
-    "MLA900000005",  # Villa Pacheco, gated/pileta por texto
+    "MLA900000005",  # Villa Pacheco
+    "MLA900000011",  # sin pileta
+    "MLA900000012",  # no gated
 }
 
 DROP_IDS = {
@@ -31,10 +33,8 @@ DROP_IDS = {
     "MLA900000006",  # USD 3500 > watch_max 2500
     "MLA900000007",  # Nordelta
     "MLA900000008",  # Tigre centro
-    "MLA900000009",  # 3 dormitorios
-    "MLA900000010",  # 4 ambientes ≠ 4 dormitorios
-    "MLA900000011",  # sin pileta
-    "MLA900000012",  # no gated
+    "MLA900000009",  # 3 dormitorios y 4 ambientes
+    "MLA900000010",  # 4 ambientes, sin dormitorios
     "MLA900000013",  # USD 4000 > watch_max
     "MLA900000014",  # departamento
 }
@@ -69,8 +69,6 @@ def test_fixture_maps_listings_with_stable_meli_ids() -> None:
         assert listing.external_id.startswith("MLA")
         assert listing.property_type == "house"
         assert listing.locality == "General Pacheco"
-        assert listing.is_gated is True
-        assert listing.has_pool is True
         assert listing.url
         assert listing.url.startswith("https://casa.mercadolibre.com.ar/")
         assert listing.raw_hash
@@ -112,14 +110,11 @@ def test_ars_without_fx_leaves_price_usd_none() -> None:
     assert listing.price_usd is None
 
 
-def test_pool_and_gated_need_evidence() -> None:
+def test_pool_and_gated_are_not_required() -> None:
     ids = {listing.external_id for listing in _listings()}
-    assert "MLA900000011" not in ids
-    assert "MLA900000012" not in ids
+    assert "MLA900000011" in ids
+    assert "MLA900000012" in ids
     assert "MLA900000014" not in ids
-    text_evidence = _by_id()["MLA900000005"]
-    assert text_evidence.is_gated is True
-    assert text_evidence.has_pool is True
 
 
 def test_fetch_listings_checks_robots_and_uses_html_serp() -> None:

@@ -34,10 +34,10 @@ KEEP_IDS = {
 DROP_IDS = {
     "ZP900000005",  # Villa Pacheco (fuera de la lista)
     "ZP900000008",  # Tigre centro
-    "ZP900000009",  # 3 dormitorios
-    "ZP900000010",  # 4 ambientes ≠ 4 dormitorios
-    "ZP900000011",  # sin pileta
-    "ZP900000012",  # no gated
+    "ZP900000009",  # 3 dormitorios y 4 ambientes
+    "ZP900000010",  # 4 ambientes, sin dormitorios
+    "ZP900000011",  # General Pacheco (fuera de la lista)
+    "ZP900000012",  # General Pacheco (fuera de la lista)
     "ZP900000013",  # USD 4000 > watch_max
     "ZP900000014",  # departamento
 }
@@ -75,8 +75,6 @@ def test_fixture_maps_listings_with_stable_zonaprop_ids() -> None:
     for listing in listings:
         assert listing.source == "zonaprop"
         assert listing.property_type == "house"
-        assert listing.is_gated is True
-        assert listing.has_pool is True
         assert listing.url
         assert listing.url.startswith("https://www.zonaprop.com.ar/")
         assert listing.raw_hash
@@ -107,11 +105,13 @@ def test_keeps_listed_barrios_and_drops_others() -> None:
     assert "ZP900000008" not in by_id
 
 
-def test_bedrooms_not_confused_with_ambientes() -> None:
+def test_four_ambientes_are_not_five() -> None:
     by_id = _by_id()
 
     assert by_id["ZP900000001"].bedrooms == 4
+    assert by_id["ZP900000001"].ambientes == 5
     assert by_id["ZP900000003"].bedrooms is None
+    assert by_id["ZP900000003"].ambientes == 5
     assert "ZP900000009" not in by_id
     assert "ZP900000010" not in by_id
 
@@ -123,14 +123,11 @@ def test_ars_without_fx_leaves_price_usd_none() -> None:
     assert listing.price_usd is None
 
 
-def test_pool_and_gated_need_evidence() -> None:
+def test_pool_and_gated_are_not_required() -> None:
     ids = {listing.external_id for listing in _listings()}
-    assert "ZP900000011" not in ids
-    assert "ZP900000012" not in ids
     assert "ZP900000014" not in ids
-    text_evidence = _by_id()["ZP900000007"]
-    assert text_evidence.is_gated is True
-    assert text_evidence.has_pool is True
+    nordelta = _by_id()["ZP900000007"]
+    assert nordelta.barrio_name == "Nordelta"
 
 
 def test_fetch_listings_checks_robots_and_uses_html_serp() -> None:

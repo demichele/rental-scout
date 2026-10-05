@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 
 class Listing(BaseModel):
-    """Contrato de aviso. bedrooms = dormitorios, no ambientes. is_gated solo con evidencia."""
+    """Contrato de aviso. bedrooms = dormitorios; ambientes es independiente."""
 
     source: str
     external_id: str
@@ -15,6 +15,7 @@ class Listing(BaseModel):
     barrio_name: str | None = None
     is_gated: bool
     bedrooms: int | None = None
+    ambientes: int | None = None
     bathrooms: float | None = None
     m2: float | None = None
     has_pool: bool

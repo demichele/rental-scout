@@ -17,6 +17,7 @@ def make_listing(**overrides) -> Listing:
         "barrio_name": "San Pablo",
         "is_gated": True,
         "bedrooms": 4,
+        "ambientes": 5,
         "bathrooms": 3,
         "m2": 220.0,
         "has_pool": True,
@@ -83,7 +84,8 @@ def test_send_new_posts_listing_fields(telegram_http) -> None:
     assert payload["link_preview_options"]["url"] == "https://example.com/MLA123"
     assert "Por qué califica:" in text
     assert "barrio cerrado" in text
-    assert "4+ dormitorios" in text
+    assert "3+ dormitorios" in text
+    assert "5+ ambientes" in text
     assert "pileta" in text
     assert "1500–2500 USD" in text
 

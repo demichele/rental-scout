@@ -36,6 +36,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from src.match import enough_size
 from src.models import Listing
 from src.prefs import Prefs, load_prefs
 
@@ -645,7 +646,7 @@ def _map_item(item: dict[str, Any], prefs: Prefs) -> Listing | None:
 
     bedrooms = _attr_int(item, "BEDROOMS")
     rooms = _attr_int(item, "ROOMS")
-    if not _enough_bedrooms(bedrooms, rooms, prefs.min_bedrooms):
+    if not enough_size(bedrooms, rooms, prefs):
         return None
 
     is_gated = _is_gated(item)
@@ -672,6 +673,7 @@ def _map_item(item: dict[str, Any], prefs: Prefs) -> Listing | None:
         barrio_name=neighborhood or None,
         is_gated=is_gated,
         bedrooms=bedrooms,
+        ambientes=rooms,
         bathrooms=_attr_float(item, "FULL_BATHROOMS") or _attr_float(item, "BATHROOMS"),
         m2=_attr_float(item, "COVERED_AREA") or _attr_float(item, "TOTAL_AREA"),
         has_pool=has_pool,
@@ -722,14 +724,6 @@ def _location_text(item: dict[str, Any]) -> str:
 
 def _is_pacheco(item: dict[str, Any]) -> bool:
     return bool(_PACHECO_RE.search(_location_text(item)))
-
-
-def _enough_bedrooms(bedrooms: int | None, rooms: int | None, min_bedrooms: int) -> bool:
-    if bedrooms is not None:
-        return bedrooms >= min_bedrooms
-    if rooms is not None:
-        return rooms >= min_bedrooms + 1
-    return False
 
 
 def _is_gated(item: dict[str, Any]) -> bool:

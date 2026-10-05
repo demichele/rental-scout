@@ -1,5 +1,4 @@
-# 4 dormitorios ≠ 4 ambientes; 4 dormitorios ≈ 5+ ambientes.
-# El filtro geográfico es `barrios` (countries de Tigre / Pacheco), no locality.
+# 3 dormitorios y 5+ ambientes. Los barrios de la lista ya son countries.
 locality: Tigre
 barrios:
   - Talar del Lago
@@ -9,9 +8,10 @@ barrios:
   - Barrancas de Santa Maria
   - Barrancas de San Jose
   - Santa Barbara
-gated_only: true
-min_bedrooms: 4
-require_pool: true
+gated_only: false
+min_bedrooms: 3
+min_ambientes: 5
+require_pool: false
 property_type: house
 min_price_usd: 1500
 max_price_usd: 2500

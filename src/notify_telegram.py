@@ -77,6 +77,8 @@ def _qualify_reasons(listing: Listing, prefs: Prefs, price_usd: float | None) ->
         reasons.append(place)
     if listing.is_gated:
         reasons.append("barrio cerrado")
+    if listing.ambientes is not None and listing.ambientes >= prefs.min_ambientes:
+        reasons.append(f"{prefs.min_ambientes}+ ambientes")
     if listing.bedrooms is not None and listing.bedrooms >= prefs.min_bedrooms:
         reasons.append(f"{prefs.min_bedrooms}+ dormitorios")
     if listing.has_pool:

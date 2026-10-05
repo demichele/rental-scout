@@ -11,6 +11,7 @@ class Prefs(BaseModel):
     locality: str
     gated_only: bool
     min_bedrooms: int
+    min_ambientes: int = 5
     require_pool: bool
     property_type: str
     min_price_usd: int
