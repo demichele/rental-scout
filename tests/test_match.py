@@ -481,6 +481,7 @@ def test_main_without_telegram_exits(monkeypatch) -> None:
     monkeypatch.setattr("jobs.run_once.load_dotenv", lambda *args, **kwargs: None)
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_IDS", raising=False)
     from jobs.run_once import main
 
     with pytest.raises(SystemExit, match="TELEGRAM"):

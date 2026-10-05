@@ -187,9 +187,50 @@ def test_send_new_expenses_missing_shows_dash(telegram_http) -> None:
     assert "Pileta:" not in text
 
 
+def test_send_new_fans_out_to_chat_ids(telegram_http, monkeypatch) -> None:
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "111")
+    monkeypatch.setenv("TELEGRAM_CHAT_IDS", "111, 222")
+    send_new(make_listing())
+
+    chats = [
+        call.kwargs["json"]["chat_id"] for call in telegram_http.call_args_list
+    ]
+    assert chats == ["111", "222"]
+    assert telegram_http.call_count == 2
+
+
+def test_send_new_chat_ids_only(telegram_http, monkeypatch) -> None:
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.setenv("TELEGRAM_CHAT_IDS", "222,333")
+    send_new(make_listing())
+
+    chats = [
+        call.kwargs["json"]["chat_id"] for call in telegram_http.call_args_list
+    ]
+    assert chats == ["222", "333"]
+
+
+def test_send_new_continues_if_one_chat_fails(telegram_http, monkeypatch) -> None:
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "111")
+    monkeypatch.setenv("TELEGRAM_CHAT_IDS", "222")
+    bad = _ok_response()
+    bad.is_error = True
+    bad.status_code = 400
+    bad.json.return_value = {"ok": False, "description": "chat not found"}
+    telegram_http.side_effect = [bad, _ok_response()]
+
+    send_new(make_listing())
+
+    chats = [
+        call.kwargs["json"]["chat_id"] for call in telegram_http.call_args_list
+    ]
+    assert chats == ["111", "222"]
+
+
 def test_missing_env_does_not_call_httpx(monkeypatch) -> None:
     monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_IDS", raising=False)
     mock_post = MagicMock()
     monkeypatch.setattr("src.notify_telegram.httpx.post", mock_post)
 

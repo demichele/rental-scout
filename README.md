@@ -92,7 +92,7 @@ Alerts are short operational messages, not portal clones:
 - Link to the listing
 - Why it matched the brief
 
-Two event types: a house that newly qualifies, and a house that dropped enough to matter.
+Two event types: a house that newly qualifies, and a house that dropped enough to matter. Recipients are environment chat ids, not git — the same report is sent to each.
 
 ## Run it
 

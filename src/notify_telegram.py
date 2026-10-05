@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import os
 from html import escape
 
@@ -11,10 +12,11 @@ from src.prefs import Prefs, prefs_for_listing
 
 TELEGRAM_API = "https://api.telegram.org"
 SEND_TIMEOUT = 20.0
+log = logging.getLogger(__name__)
 
 
 class TelegramConfigError(RuntimeError):
-    """Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID."""
+    """Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID / TELEGRAM_CHAT_IDS."""
 
 
 def send_new(listing: Listing) -> None:
@@ -27,22 +29,45 @@ def send_price_drop(listing: Listing, old_usd: float, new_usd: float) -> None:
     _send(_format_price_drop(listing, old_usd, new_usd, prefs), preview_url=listing.url)
 
 
-def _credentials() -> tuple[str, str]:
+def _parse_chat_ids(*raw_values: str) -> list[str]:
+    ids: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_values:
+        for part in raw.replace(";", ",").split(","):
+            chat_id = part.strip()
+            if not chat_id or chat_id in seen:
+                continue
+            seen.add(chat_id)
+            ids.append(chat_id)
+    return ids
+
+
+def _chat_ids() -> list[str]:
+    """TELEGRAM_CHAT_ID (principal) más TELEGRAM_CHAT_IDS (lista, coma)."""
+    return _parse_chat_ids(
+        os.environ.get("TELEGRAM_CHAT_ID", ""),
+        os.environ.get("TELEGRAM_CHAT_IDS", ""),
+    )
+
+
+def _credentials() -> tuple[str, list[str]]:
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
-    if not token or not chat_id:
+    chat_ids = _chat_ids()
+    if not token or not chat_ids:
         raise TelegramConfigError(
-            "Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID en el entorno"
+            "Faltan TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID/TELEGRAM_CHAT_IDS "
+            "en el entorno"
         )
     bot_id = token.split(":", 1)[0]
-    if chat_id == bot_id:
-        raise TelegramConfigError(
-            "TELEGRAM_CHAT_ID es el id del bot, no el tuyo. "
-            "Abrí el chat con el bot, mandá /start, y poné el chat.id "
-            "de TU usuario (getUpdates o @userinfobot). "
-            "El id del bot es la parte numérica del token; no lo uses como chat."
-        )
-    return token, chat_id
+    for chat_id in chat_ids:
+        if chat_id == bot_id:
+            raise TelegramConfigError(
+                "TELEGRAM_CHAT_ID es el id del bot, no el tuyo. "
+                "Abrí el chat con el bot, mandá /start, y poné el chat.id "
+                "de TU usuario (getUpdates o @userinfobot). "
+                "El id del bot es la parte numérica del token; no lo uses como chat."
+            )
+    return token, chat_ids
 
 
 def require_credentials() -> None:
@@ -203,8 +228,7 @@ def _format_price_drop(
     return "\n".join(lines)
 
 
-def _send(text: str, *, preview_url: str | None = None) -> None:
-    token, chat_id = _credentials()
+def _send_one(token: str, chat_id: str, text: str, *, preview_url: str | None) -> None:
     url = f"{TELEGRAM_API}/bot{token}/sendMessage"
     payload: dict[str, object] = {
         "chat_id": chat_id,
@@ -220,14 +244,29 @@ def _send(text: str, *, preview_url: str | None = None) -> None:
         timeout=SEND_TIMEOUT,
     )
     try:
-        payload = response.json()
+        body = response.json()
     except ValueError:
-        payload = {}
-    description = payload.get("description") or response.text[:300]
-    if response.is_error or not payload.get("ok", True):
+        body = {}
+    description = body.get("description") or response.text[:300]
+    if response.is_error or not body.get("ok", True):
         raise RuntimeError(
             f"Telegram sendMessage {response.status_code}: {description} "
             f"(chat_id={chat_id!r}). "
             "El bot tiene que haber recibido un /start tuyo; "
             "si el token salió en un log, revocalo en BotFather."
         )
+
+
+def _send(text: str, *, preview_url: str | None = None) -> None:
+    token, chat_ids = _credentials()
+    errors: list[str] = []
+    sent = 0
+    for chat_id in chat_ids:
+        try:
+            _send_one(token, chat_id, text, preview_url=preview_url)
+            sent += 1
+        except RuntimeError as exc:
+            log.warning("%s", exc)
+            errors.append(str(exc))
+    if sent == 0:
+        raise RuntimeError(errors[0] if errors else "Telegram sendMessage failed")
