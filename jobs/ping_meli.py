@@ -22,6 +22,8 @@ def main() -> None:
     if result.search_http is not None:
         total = result.search_total if result.search_total is not None else "-"
         print(f"search HTTP {result.search_http} total={total}")
+    if result.search_error:
+        print(f"search error={result.search_error}")
     if not result.ok:
         raise SystemExit(1)
     print("ok: conexión MELI lista para jobs.run_once")

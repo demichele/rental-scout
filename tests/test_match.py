@@ -15,8 +15,8 @@ def make_listing(**overrides) -> Listing:
         "external_id": "FAKE-1",
         "url": "https://example.com/FAKE-1",
         "title": "Casa en barrio cerrado",
-        "locality": "General Pacheco",
-        "barrio_name": "San Pablo",
+        "locality": "Tigre",
+        "barrio_name": "La Comarca",
         "is_gated": True,
         "bedrooms": 4,
         "bathrooms": 3,
@@ -88,9 +88,21 @@ def test_not_watch_apartment(prefs) -> None:
     assert is_watch(listing, prefs) is False
 
 
-def test_not_watch_nordelta(prefs) -> None:
-    listing = make_listing(locality="Nordelta")
+def test_not_watch_unknown_barrio(prefs) -> None:
+    listing = make_listing(locality="Tigre", barrio_name="Villa Pacheco", title="Casa en Villa Pacheco")
     assert is_watch(listing, prefs) is False
+
+
+def test_watch_listed_barrios(prefs) -> None:
+    for barrio in prefs.barrios:
+        listing = make_listing(barrio_name=barrio, locality="Tigre", title=f"Casa en {barrio}")
+        assert is_watch(listing, prefs) is True, barrio
+    accented = make_listing(
+        barrio_name="Santa Bárbara",
+        locality="Tigre",
+        title="Casa en Santa Bárbara",
+    )
+    assert is_watch(accented, prefs) is True
 
 
 def test_not_watch_without_price_usd(prefs) -> None:
@@ -99,9 +111,15 @@ def test_not_watch_without_price_usd(prefs) -> None:
     assert is_match(listing, prefs) is False
 
 
-def test_2800_watch_but_not_match(prefs) -> None:
-    listing = make_listing(price=2800, price_usd=2800)
+def test_2500_is_match(prefs) -> None:
+    listing = make_listing(price=2500, price_usd=2500)
     assert is_watch(listing, prefs) is True
+    assert is_match(listing, prefs) is True
+
+
+def test_2600_is_not_watch(prefs) -> None:
+    listing = make_listing(price=2600, price_usd=2600)
+    assert is_watch(listing, prefs) is False
     assert is_match(listing, prefs) is False
 
 
@@ -120,9 +138,7 @@ def test_is_drop_threshold_and_range(prefs) -> None:
     assert is_drop(None, 2000, prefs) is False
 
 
-def test_2800_upserted_without_new(
-    db_path: Path, prefs, monkeypatch
-) -> None:
+def test_over_watch_is_not_upserted(db_path: Path, prefs, monkeypatch) -> None:
     sent: list[str] = []
     monkeypatch.setattr("jobs.run_once.send_new", lambda listing: sent.append("new"))
     monkeypatch.setattr(
@@ -130,14 +146,14 @@ def test_2800_upserted_without_new(
         lambda listing, old_usd, new_usd: sent.append("drop"),
     )
 
-    stats = _run([make_listing(price=2800, price_usd=2800)], db_path=db_path, prefs=prefs)
+    stats = _run([make_listing(price=2600, price_usd=2600)], db_path=db_path, prefs=prefs)
 
     assert stats.fetched == 1
-    assert stats.upserted == 1
+    assert stats.upserted == 0
     assert stats.new_notified == 0
     assert stats.drop_notified == 0
     assert sent == []
-    assert _count(db_path, "listings") == 1
+    assert _count(db_path, "listings") == 0
     assert _count(db_path, "notifications") == 0
 
 
@@ -172,7 +188,7 @@ def test_2200_first_new_then_silence_then_drop(
     assert _count(db_path, "notifications") == 2
 
 
-def test_entered_range_is_drop_not_extra_new(
+def test_price_over_watch_is_not_tracked_for_later_drop(
     db_path: Path, prefs, monkeypatch
 ) -> None:
     sent: list[tuple] = []
@@ -185,14 +201,14 @@ def test_entered_range_is_drop_not_extra_new(
     )
 
     first = _run([make_listing(price=3200, price_usd=3200)], db_path=db_path, prefs=prefs)
-    assert first.upserted == 1
+    assert first.upserted == 0
     assert first.new_notified == 0
     assert sent == []
 
     second = _run([make_listing(price=2400, price_usd=2400)], db_path=db_path, prefs=prefs)
-    assert second.new_notified == 0
-    assert second.drop_notified == 1
-    assert sent == [("drop", 3200, 2400)]
+    assert second.new_notified == 1
+    assert second.drop_notified == 0
+    assert sent == [("new", 2400)]
     assert _count(db_path, "notifications") == 1
 
 
@@ -248,7 +264,7 @@ def test_non_watch_listings_are_not_upserted(db_path: Path, prefs, monkeypatch) 
         make_listing(external_id="a", bedrooms=3, raw_hash="a"),
         make_listing(external_id="b", has_pool=False, raw_hash="b"),
         make_listing(external_id="c", property_type="depto", raw_hash="c"),
-        make_listing(external_id="d", locality="Nordelta", raw_hash="d"),
+        make_listing(external_id="d", barrio_name="Tigre centro", locality="Tigre", title="Tigre centro", raw_hash="d"),
     ]
     stats = _run(listings, db_path=db_path, prefs=prefs)
     assert stats.fetched == 4
@@ -281,7 +297,7 @@ def test_run_continues_if_one_adapter_fails(db_path: Path, prefs) -> None:
     assert stats.upserted == 1
 
 
-def test_meli_fetch_failure_hints_ping_meli(db_path: Path, prefs, caplog) -> None:
+def test_meli_html_failure_hints_waf(db_path: Path, prefs, caplog) -> None:
     def boom(_prefs=None, **_kwargs):
         raise RuntimeError("HTTP 403")
 
@@ -295,19 +311,17 @@ def test_meli_fetch_failure_hints_ping_meli(db_path: Path, prefs, caplog) -> Non
             dry_run=True,
         )
     assert stats.fetched == 1
-    assert any("ping_meli" in rec.message for rec in caplog.records)
+    assert any("_Desde_" in rec.message or "WAF" in rec.message for rec in caplog.records)
 
 
-def test_enabled_adapters_includes_zonaprop_and_meli(prefs) -> None:
+def test_enabled_adapters_is_zonaprop_only(prefs) -> None:
     from jobs.run_once import _available_fetchers
-    from src.adapters.meli import check_connection
 
-    assert prefs.enabled_adapters == ["zonaprop", "meli"]
+    assert prefs.enabled_adapters == ["zonaprop"]
     fetchers = _available_fetchers(prefs)
     modules = [fetch.__module__ for fetch in fetchers]
-    assert modules == ["src.adapters.zonaprop", "src.adapters.meli"]
+    assert modules == ["src.adapters.zonaprop"]
     assert all(fetch.__name__ == "fetch_listings" for fetch in fetchers)
-    assert check_connection not in fetchers
 
 
 def test_dry_run_then_live_sends_new_for_unnotified_match(

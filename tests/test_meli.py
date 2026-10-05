@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -8,28 +7,28 @@ import httpx
 import pytest
 
 from src.adapters.meli import (
-    CATEGORY_HOUSES_RENT,
-    CITY_TIGRE,
-    SEARCH_URL,
-    USERS_ME_URL,
+    BASE_URL,
+    ROBOTS_URL,
     USER_AGENT,
+    FetchNotAllowed,
     fetch_listings,
-    listings_from_search,
+    listings_from_html,
+    search_url,
 )
 from src.prefs import load_prefs
 
-FIXTURE_PATH = Path(__file__).parent / "fixtures" / "meli.json"
+FIXTURE_PATH = Path(__file__).parent / "fixtures" / "meli.html"
 
 KEEP_IDS = {
     "MLA900000001",  # USD 2200 en rango de notify
-    "MLA900000002",  # USD 3200 watch, no filtrar 1500–2500 acá
     "MLA900000003",  # solo ambientes >= 5
     "MLA900000004",  # ARS → price_usd None
     "MLA900000005",  # Villa Pacheco, gated/pileta por texto
-    "MLA900000006",  # Pacheco Golf, tope watch 3500
 }
 
 DROP_IDS = {
+    "MLA900000002",  # USD 3200 > watch_max 2500
+    "MLA900000006",  # USD 3500 > watch_max 2500
     "MLA900000007",  # Nordelta
     "MLA900000008",  # Tigre centro
     "MLA900000009",  # 3 dormitorios
@@ -40,13 +39,19 @@ DROP_IDS = {
     "MLA900000014",  # departamento
 }
 
+SAMPLE_ROBOTS = """
+User-agent: *
+Disallow: /*_Desde_
+Disallow: /api/
+"""
 
-def _fixture() -> dict:
-    return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+
+def _html() -> str:
+    return FIXTURE_PATH.read_text(encoding="utf-8")
 
 
 def _listings():
-    return listings_from_search(_fixture(), load_prefs())
+    return listings_from_html(_html(), load_prefs())
 
 
 def _by_id():
@@ -67,10 +72,11 @@ def test_fixture_maps_listings_with_stable_meli_ids() -> None:
         assert listing.is_gated is True
         assert listing.has_pool is True
         assert listing.url
+        assert listing.url.startswith("https://casa.mercadolibre.com.ar/")
         assert listing.raw_hash
         assert listing.external_id == listing.external_id.strip()
 
-    again = listings_from_search(_fixture(), load_prefs())
+    again = listings_from_html(_html(), load_prefs())
     assert [listing.external_id for listing in again] == [listing.external_id for listing in listings]
 
 
@@ -78,8 +84,8 @@ def test_keeps_watch_prices_and_does_not_apply_notify_band() -> None:
     by_id = _by_id()
 
     assert by_id["MLA900000001"].price_usd == 2200
-    assert by_id["MLA900000002"].price_usd == 3200
-    assert by_id["MLA900000006"].price_usd == 3500
+    assert "MLA900000002" not in by_id
+    assert "MLA900000006" not in by_id
     assert "MLA900000013" not in by_id
 
 
@@ -88,7 +94,6 @@ def test_drops_nordelta_and_tigre_centro_without_pacheco() -> None:
     assert "MLA900000007" not in by_id
     assert "MLA900000008" not in by_id
     assert by_id["MLA900000005"].barrio_name == "Villa Pacheco"
-    assert by_id["MLA900000006"].barrio_name == "Pacheco Golf Club"
 
 
 def test_bedrooms_not_confused_with_ambientes() -> None:
@@ -117,91 +122,105 @@ def test_pool_and_gated_need_evidence() -> None:
     assert text_evidence.has_pool is True
 
 
-def test_fetch_listings_uses_public_search_and_fixture() -> None:
-    payload = _fixture()
-    response = MagicMock()
-    response.status_code = 200
-    response.raise_for_status.return_value = None
-    response.json.return_value = payload
+def test_fetch_listings_checks_robots_and_uses_html_serp() -> None:
+    prefs = load_prefs()
+    robots = MagicMock()
+    robots.status_code = 200
+    robots.headers = {}
+    robots.text = SAMPLE_ROBOTS
+    robots.raise_for_status.return_value = None
+
+    page = MagicMock()
+    page.status_code = 200
+    page.headers = {"content-type": "text/html"}
+    page.text = _html()
+    page.raise_for_status.return_value = None
+
+    def fake_get(url, **kwargs):
+        if str(url) == ROBOTS_URL:
+            return robots
+        return page
+
     client = MagicMock()
-    client.get.return_value = response
+    client.get.side_effect = fake_get
 
-    listings = fetch_listings(load_prefs(), client=client)
+    listings = fetch_listings(prefs, client=client)
 
-    client.get.assert_called_once()
-    args, kwargs = client.get.call_args
-    assert args[0] == SEARCH_URL
-    assert args[0] != USERS_ME_URL
-    assert kwargs["params"]["category"] == CATEGORY_HOUSES_RENT
-    assert kwargs["params"]["city"] == CITY_TIGRE
-    assert kwargs["headers"]["User-Agent"] == USER_AGENT
+    urls = [str(call.args[0]) for call in client.get.call_args_list]
+    assert urls[0] == ROBOTS_URL
+    assert urls[1] == search_url()
+    assert "api.mercadolibre.com" not in "".join(urls)
+    assert "_Desde_" not in "".join(urls)
+    headers = client.get.call_args_list[1].kwargs["headers"]
+    assert headers["User-Agent"] == USER_AGENT
+    assert "Authorization" not in headers
     assert {listing.external_id for listing in listings} == KEEP_IDS
 
 
-def test_fetch_listings_403_asks_for_oauth_token(monkeypatch) -> None:
-    from src.adapters.errors import AdapterFetchError
+def test_fetch_raises_when_robots_disallow() -> None:
+    robots = MagicMock()
+    robots.status_code = 200
+    robots.headers = {}
+    robots.text = "User-agent: *\nDisallow: /\n"
+    robots.raise_for_status.return_value = None
 
-    monkeypatch.delenv("MELI_ACCESS_TOKEN", raising=False)
-    response = MagicMock()
-    response.status_code = 403
     client = MagicMock()
-    client.get.return_value = response
+    client.get.return_value = robots
 
-    with pytest.raises(AdapterFetchError, match="MELI_ACCESS_TOKEN"):
+    with pytest.raises(FetchNotAllowed):
         fetch_listings(load_prefs(), client=client)
 
+    assert client.get.call_count == 1
+    assert str(client.get.call_args.args[0]) == ROBOTS_URL
 
-def test_fetch_listings_403_with_token_says_rejected(monkeypatch) -> None:
-    from src.adapters.errors import AdapterFetchError
 
-    monkeypatch.setenv("MELI_ACCESS_TOKEN", "APP_USR-123-expired-token-placeholder-xxxx")
-    response = MagicMock()
-    response.status_code = 403
+def test_fetch_raises_on_waf_without_retry() -> None:
+    robots = MagicMock()
+    robots.status_code = 200
+    robots.headers = {}
+    robots.text = SAMPLE_ROBOTS
+    robots.raise_for_status.return_value = None
+
+    blocked = MagicMock()
+    blocked.status_code = 403
+    blocked.headers = {"cf-mitigated": "challenge"}
+    blocked.text = "Just a moment..."
+
+    def fake_get(url, **kwargs):
+        if str(url) == ROBOTS_URL:
+            return robots
+        return blocked
+
     client = MagicMock()
-    client.get.return_value = response
+    client.get.side_effect = fake_get
 
-    with pytest.raises(AdapterFetchError, match="rechazó el access token"):
+    with pytest.raises(FetchNotAllowed):
         fetch_listings(load_prefs(), client=client)
 
-
-def test_fetch_listings_403_secret_looking_token(monkeypatch) -> None:
-    from src.adapters.errors import AdapterFetchError
-
-    monkeypatch.setenv("MELI_ACCESS_TOKEN", "a" * 32)
-    response = MagicMock()
-    response.status_code = 403
-    client = MagicMock()
-    client.get.return_value = response
-
-    with pytest.raises(AdapterFetchError, match="APP_USR-"):
-        fetch_listings(load_prefs(), client=client)
+    assert client.get.call_count == 2
 
 
-def _meli_categories_reachable() -> bool:
-    try:
-        response = httpx.get(
-            f"https://api.mercadolibre.com/categories/{CATEGORY_HOUSES_RENT}",
-            headers={"User-Agent": USER_AGENT},
-            timeout=5.0,
-        )
-        return response.status_code == 200
-    except httpx.HTTPError:
-        return False
+def test_search_url_is_public_html_serp() -> None:
+    url = search_url()
+    assert url == BASE_URL + "/casas/alquiler/bsas-gba-norte/tigre/general-pacheco/"
+    assert "api.mercadolibre.com" not in url
+    assert search_url(page=2).endswith("_Desde_49")
+
+
+def test_pagination_desde_is_blocked_by_robots() -> None:
+    from src.adapters.meli import _allowed_by_robots
+
+    assert _allowed_by_robots(SAMPLE_ROBOTS, search_url()) is True
+    assert _allowed_by_robots(SAMPLE_ROBOTS, search_url(page=2)) is False
 
 
 def test_optional_live_search() -> None:
-    if not _meli_categories_reachable():
-        pytest.skip("sin red")
     try:
         listings = fetch_listings(load_prefs())
-    except (httpx.HTTPStatusError, Exception) as exc:
-        from src.adapters.errors import AdapterFetchError
-
-        if isinstance(exc, AdapterFetchError):
-            pytest.skip("búsqueda ML no pública sin token")
-        if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code in {401, 403}:
-            pytest.skip("búsqueda ML no pública sin token")
-        raise
+    except FetchNotAllowed as exc:
+        pytest.skip(str(exc))
+    except httpx.HTTPError:
+        pytest.skip("sin red")
 
     assert isinstance(listings, list)
     for listing in listings:

@@ -7,9 +7,9 @@ bloquea o no son públicas. No burla captchas ni WAF.
 
 Cómo guardar la fixture a mano (si el GET está bloqueado):
 
-1. En un navegador normal abrí
-   https://www.zonaprop.com.ar/casas-alquiler-general-pacheco.html
-   (el slug menos-de-N-dolares redirige 301 a esta SERP).
+1. En un navegador normal abrí una SERP de barrio, p.ej.
+   https://www.zonaprop.com.ar/casas-alquiler-nordelta.html
+   (el slug menos-de-N-dolares redirige 301 a la SERP sin tope).
 2. Si aparece captcha o challenge, resolvelo vos. No lo hagas desde acá.
 3. Archivo → Guardar como → Sólo HTML, a tests/fixtures/zonaprop.html
 4. Con el <script> que contiene window.__PRELOADED_STATE__ alcanza.
@@ -30,6 +30,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from src.match import fold_text, text_matches_barrios
 from src.models import Listing
 from src.prefs import Prefs, load_prefs
 
@@ -43,7 +44,18 @@ PAGE_DELAY_SEC = 1.0
 MAX_PAGES = 5
 
 # SERP HTML. robots.txt permite pág. 1 y pagina-2..5; no /avisos-api/.
-SEARCH_PATH = "/casas-alquiler-general-pacheco.html"
+SEARCH_PATH = "/casas-alquiler-nordelta.html"
+
+# Slugs de ZonaProp por barrio (sin acento). Talar del Lago son dos countries.
+_BARRIO_SEARCH_SLUGS: dict[str, tuple[str, ...]] = {
+    "talar del lago": ("talar-del-lago-1", "talar-del-lago-2"),
+    "nordelta": ("nordelta",),
+    "los alisos": ("los-alisos",),
+    "la comarca": ("la-comarca",),
+    "barrancas de santa maria": ("barrancas-de-santa-maria",),
+    "barrancas de san jose": ("barrancas-de-san-jose",),
+    "santa barbara": ("santa-barbara",),
+}
 
 _HOUSE_TYPES = {
     "casa",
@@ -63,7 +75,6 @@ _GATED_RE = re.compile(
     re.IGNORECASE,
 )
 _POOL_RE = re.compile(r"\b(?:pileta|piscina)\b", re.IGNORECASE)
-_PACHECO_RE = re.compile(r"pacheco", re.IGNORECASE)
 _PRELOADED_RE = re.compile(r"window\.__PRELOADED_STATE__\s*=\s*")
 _BLOCKED_RE = re.compile(
     r"just a moment|attention required|cf-challenge|cf-mitigated|access denied",
@@ -75,17 +86,43 @@ class FetchNotAllowed(RuntimeError):
     """robots.txt, WAF o captcha: no se pega a ZonaProp."""
 
 
-def search_url(*, watch_max_usd: int | None = None, page: int = 1) -> str:
+def search_paths(prefs: Prefs | None = None) -> list[str]:
+    """SERPs HTML por barrio de prefs. Sin duplicados, orden de prefs.barrios."""
+    prefs = prefs or load_prefs()
+    paths: list[str] = []
+    seen: set[str] = set()
+    for barrio in prefs.barrios:
+        for slug in _BARRIO_SEARCH_SLUGS.get(fold_text(barrio), (_slugify(barrio),)):
+            path = f"/casas-alquiler-{slug}.html"
+            if path not in seen:
+                seen.add(path)
+                paths.append(path)
+    return paths or [SEARCH_PATH]
+
+
+def search_url(
+    *,
+    watch_max_usd: int | None = None,
+    page: int = 1,
+    path: str | None = None,
+    prefs: Prefs | None = None,
+) -> str:
     """URL de SERP HTML permitida (página 1, o pagina-2..5).
 
     watch_max_usd se ignora: ZonaProp 301 el slug menos-de-N-dolares a la
     SERP sin tope. El cap queda en _map_item.
     """
     _ = watch_max_usd
-    slug = SEARCH_PATH.removeprefix("/").removesuffix(".html")
+    resolved = path or (search_paths(prefs)[0] if prefs is not None else SEARCH_PATH)
+    slug = resolved.removeprefix("/").removesuffix(".html")
     if page <= 1:
         return f"{BASE_URL}/{slug}.html"
     return f"{BASE_URL}/{slug}-pagina-{page}.html"
+
+
+def _slugify(barrio: str) -> str:
+    folded = fold_text(barrio).strip()
+    return re.sub(r"[^a-z0-9]+", "-", folded).strip("-")
 
 
 def fetch_listings(
@@ -142,46 +179,83 @@ def _fetch_search(prefs: Prefs, *, client: httpx.Client | None) -> dict[str, Any
     try:
         robots_text = _load_robots(http)
         merged: dict[str, Any] = {"listStore": {"listPostings": []}}
-        url = search_url(watch_max_usd=prefs.watch_max_price_usd)
-        for _page in range(MAX_PAGES):
-            if not _allowed_by_robots(robots_text, url):
-                if _page == 0:
-                    raise FetchNotAllowed(f"robots.txt no permite {url}")
-                break
-            if _page:
-                time.sleep(PAGE_DELAY_SEC)
-            response = http.get(
-                url,
-                headers=_request_headers(),
-                timeout=REQUEST_TIMEOUT,
-                follow_redirects=True,
-            )
-            if _is_blocked(response):
-                if _page == 0:
-                    raise FetchNotAllowed("ZonaProp bloqueó el GET (WAF/captcha/HTTP)")
-                log.warning("ZonaProp WAF en página %s; se usan las %s anteriores", _page + 1, _page)
-                break
-            response.raise_for_status()
-            try:
-                payload = _parse_preloaded(response.text)
-            except ValueError as exc:
-                if _page == 0:
-                    raise FetchNotAllowed(
-                        "la respuesta no trae __PRELOADED_STATE__ "
-                        "(WAF/JS; guardá tests/fixtures/zonaprop.html a mano)"
-                    ) from exc
-                log.warning("ZonaProp sin PRELOADED_STATE en página %s; se usan las anteriores", _page + 1)
-                break
-            if _page == 0:
-                merged = {**payload}
-                store = dict(merged.get("listStore") or {})
-                store["listPostings"] = []
-                merged["listStore"] = store
-            (merged["listStore"]["listPostings"]).extend(_postings(payload))
-            nxt = _next_page_url(payload)
-            if not nxt:
-                break
-            url = nxt
+        any_ok = False
+        last_error: FetchNotAllowed | None = None
+        first_request = True
+        for path in search_paths(prefs):
+            url = search_url(path=path, watch_max_usd=prefs.watch_max_price_usd)
+            path_ok = False
+            for _page in range(MAX_PAGES):
+                if not _allowed_by_robots(robots_text, url):
+                    if _page == 0:
+                        log.warning("robots.txt no permite %s; se salta", url)
+                        break
+                    break
+                if owned and not first_request:
+                    time.sleep(PAGE_DELAY_SEC)
+                first_request = False
+                response = http.get(
+                    url,
+                    headers=_request_headers(),
+                    timeout=REQUEST_TIMEOUT,
+                    follow_redirects=True,
+                )
+                if response.status_code == 404:
+                    log.warning("ZonaProp 404 en %s; se salta", url)
+                    break
+                if _is_blocked(response):
+                    if _page == 0:
+                        last_error = FetchNotAllowed(
+                            "ZonaProp bloqueó el GET (WAF/captcha/HTTP)"
+                        )
+                        log.warning("%s: %s", url, last_error)
+                        break
+                    log.warning(
+                        "ZonaProp WAF en %s página %s; se usan las %s anteriores",
+                        path,
+                        _page + 1,
+                        _page,
+                    )
+                    break
+                try:
+                    response.raise_for_status()
+                except httpx.HTTPError as exc:
+                    if _page == 0:
+                        last_error = FetchNotAllowed(f"HTTP en {url}: {exc}")
+                        log.warning("%s", last_error)
+                        break
+                    log.warning("ZonaProp HTTP en %s página %s; se usan las anteriores", path, _page + 1)
+                    break
+                try:
+                    payload = _parse_preloaded(response.text)
+                except ValueError:
+                    if _page == 0:
+                        last_error = FetchNotAllowed(
+                            "la respuesta no trae __PRELOADED_STATE__ "
+                            "(WAF/JS; guardá tests/fixtures/zonaprop.html a mano)"
+                        )
+                        log.warning("%s: %s", url, last_error)
+                        break
+                    log.warning(
+                        "ZonaProp sin PRELOADED_STATE en %s página %s; se usan las anteriores",
+                        path,
+                        _page + 1,
+                    )
+                    break
+                if not path_ok and not any_ok:
+                    merged = {**payload}
+                    store = dict(merged.get("listStore") or {})
+                    store["listPostings"] = []
+                    merged["listStore"] = store
+                (merged["listStore"]["listPostings"]).extend(_postings(payload))
+                path_ok = True
+                any_ok = True
+                nxt = _next_page_url(payload)
+                if not nxt:
+                    break
+                url = nxt
+        if not any_ok:
+            raise last_error or FetchNotAllowed("ZonaProp no devolvió ninguna SERP usable")
         return merged
     finally:
         if owned:
@@ -271,8 +345,8 @@ def _try_map_item(item: dict[str, Any], prefs: Prefs) -> tuple[Listing | None, s
         return None, "no_id"
     if not _is_house(item, prefs):
         return None, "not_house"
-    if not _is_pacheco(item):
-        return None, "not_pacheco"
+    if prefs.barrios and not text_matches_barrios(_evidence_blob(item), prefs.barrios):
+        return None, "wrong_barrio"
 
     bedrooms = _feature_int(item, "dormitorio", "habitacion", "habitación")
     rooms = _feature_int(item, "ambiente")
@@ -299,7 +373,7 @@ def _try_map_item(item: dict[str, Any], prefs: Prefs) -> tuple[Listing | None, s
         external_id=external_id,
         url=_url(item, external_id),
         title=_title(item, external_id),
-        locality="General Pacheco",
+        locality=_locality_name(item),
         barrio_name=barrio or None,
         is_gated=is_gated,
         bedrooms=bedrooms,
@@ -336,16 +410,27 @@ def _is_house(item: dict[str, Any], prefs: Prefs) -> bool:
     return ("casa" in title or generated.startswith("casa")) and "departamento" not in title
 
 
+def _locality_name(item: dict[str, Any]) -> str:
+    loc = _posting_location(item)
+    node = loc.get("location") if loc else None
+    if isinstance(node, dict):
+        parent = node.get("parent")
+        if isinstance(parent, dict):
+            parent_name = str(parent.get("name") or "").strip()
+            if parent_name:
+                return parent_name
+        leaf = str(node.get("name") or "").strip()
+        if leaf:
+            return leaf
+    return "Tigre"
+
+
 def _enough_bedrooms(bedrooms: int | None, rooms: int | None, min_bedrooms: int) -> bool:
     if bedrooms is not None:
         return bedrooms >= min_bedrooms
     if rooms is not None:
         return rooms >= min_bedrooms + 1
     return False
-
-
-def _is_pacheco(item: dict[str, Any]) -> bool:
-    return bool(_PACHECO_RE.search(_evidence_blob(item)))
 
 
 def _is_gated(item: dict[str, Any]) -> bool:

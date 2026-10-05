@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import time
 from html.parser import HTMLParser
@@ -33,6 +34,8 @@ import httpx
 
 from src.models import Listing
 from src.prefs import Prefs, load_prefs
+
+log = logging.getLogger(__name__)
 
 BASE_URL = "https://www.argenprop.com"
 ROBOTS_URL = f"{BASE_URL}/robots.txt"
@@ -282,21 +285,32 @@ def _fetch_search(*, client: httpx.Client | None) -> list[dict[str, Any]]:
                 break
             if page > 1:
                 time.sleep(PAGE_DELAY_SEC)
-            response = http.get(url, headers=_request_headers(), timeout=REQUEST_TIMEOUT)
+            response = http.get(
+                url,
+                headers=_request_headers(),
+                timeout=REQUEST_TIMEOUT,
+                follow_redirects=True,
+            )
             if _is_blocked(response):
-                raise FetchNotAllowed(
-                    "Argenprop bloqueó el GET (WAF/captcha/HTTP). "
-                    "No se burla el challenge; guardá tests/fixtures/argenprop.html a mano."
-                )
+                if page == 1:
+                    raise FetchNotAllowed(
+                        "Argenprop bloqueó el GET (WAF/captcha/HTTP). "
+                        "No se burla el challenge; guardá tests/fixtures/argenprop.html a mano."
+                    )
+                log.warning("Argenprop WAF en página %s; se usan las %s anteriores", page, page - 1)
+                break
             response.raise_for_status()
             html = response.text or ""
             try:
                 cards = _parse_html_cards(html)
             except ValueError as exc:
-                raise FetchNotAllowed(
-                    "la respuesta no trae listing cards "
-                    "(WAF/JS; guardá tests/fixtures/argenprop.html a mano)"
-                ) from exc
+                if page == 1:
+                    raise FetchNotAllowed(
+                        "la respuesta no trae listing cards "
+                        "(WAF/JS; guardá tests/fixtures/argenprop.html a mano)"
+                    ) from exc
+                log.warning("Argenprop sin cards en página %s; se usan las anteriores", page)
+                break
             merged.extend(cards)
             nxt = _next_page_url(html, page)
             if not nxt:
@@ -309,7 +323,12 @@ def _fetch_search(*, client: httpx.Client | None) -> list[dict[str, Any]]:
 
 
 def _load_robots(http: httpx.Client) -> str:
-    response = http.get(ROBOTS_URL, headers=_request_headers(), timeout=REQUEST_TIMEOUT)
+    response = http.get(
+        ROBOTS_URL,
+        headers=_request_headers(),
+        timeout=REQUEST_TIMEOUT,
+        follow_redirects=True,
+    )
     if _is_blocked(response):
         raise FetchNotAllowed("robots.txt bloqueado (WAF/captcha/HTTP)")
     response.raise_for_status()

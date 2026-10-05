@@ -18,7 +18,8 @@ class Prefs(BaseModel):
     watch_max_price_usd: int
     min_drop_usd: int
     min_drop_pct: float = Field(gt=0, le=1)
-    enabled_adapters: list[str] = Field(default_factory=lambda: ["zonaprop", "meli"])
+    barrios: list[str] = Field(default_factory=list)
+    enabled_adapters: list[str] = Field(default_factory=lambda: ["zonaprop"])
 
 
 def load_prefs(path: Path | None = None) -> Prefs:

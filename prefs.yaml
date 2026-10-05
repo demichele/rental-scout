@@ -1,15 +1,23 @@
 # 4 dormitorios ≠ 4 ambientes; 4 dormitorios ≈ 5+ ambientes.
-locality: General Pacheco
+# El filtro geográfico es `barrios` (countries de Tigre / Pacheco), no locality.
+locality: Tigre
+barrios:
+  - Talar del Lago
+  - Nordelta
+  - Los Alisos
+  - La Comarca
+  - Barrancas de Santa Maria
+  - Barrancas de San Jose
+  - Santa Barbara
 gated_only: true
 min_bedrooms: 4
 require_pool: true
 property_type: house
 min_price_usd: 1500
 max_price_usd: 2500
-watch_max_price_usd: 3500
+watch_max_price_usd: 2500
 min_drop_usd: 50
 min_drop_pct: 0.03
-# argenprop: 403 WAF. El token MELI se valida aparte: python -m jobs.ping_meli
+# Solo ZonaProp. Argenprop: CloudFront 403. MELI: apagado (la API search sigue 403).
 enabled_adapters:
   - zonaprop
-  - meli

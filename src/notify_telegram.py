@@ -70,10 +70,11 @@ def _range_label(prefs: Prefs) -> str:
 
 def _qualify_reasons(listing: Listing, prefs: Prefs, price_usd: float | None) -> str:
     reasons: list[str] = []
-    if listing.property_type == "house" and listing.locality:
-        reasons.append(f"casa en {listing.locality}")
-    elif listing.locality:
-        reasons.append(listing.locality)
+    place = listing.barrio_name or listing.locality
+    if listing.property_type == "house" and place:
+        reasons.append(f"casa en {place}")
+    elif place:
+        reasons.append(place)
     if listing.is_gated:
         reasons.append("barrio cerrado")
     if listing.bedrooms is not None and listing.bedrooms >= prefs.min_bedrooms:

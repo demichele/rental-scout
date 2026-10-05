@@ -15,6 +15,7 @@ from src.adapters.zonaprop import (
     fetch_listings,
     listings_from_html,
     listings_from_search,
+    search_paths,
     search_url,
 )
 from src.prefs import load_prefs
@@ -22,16 +23,16 @@ from src.prefs import load_prefs
 FIXTURE_PATH = Path(__file__).parent / "fixtures" / "zonaprop.html"
 
 KEEP_IDS = {
-    "ZP900000001",  # USD 2200 en rango de notify
-    "ZP900000002",  # USD 3200 watch, no filtrar 1500–2500 acá
-    "ZP900000003",  # solo ambientes >= 5
-    "ZP900000004",  # ARS → price_usd None
-    "ZP900000005",  # Villa Pacheco, gated/pileta por texto
-    "ZP900000006",  # Pacheco Golf, tope watch 3500
+    "ZP900000001",  # La Comarca USD 2200
+    "ZP900000002",  # Los Alisos USD 2400
+    "ZP900000003",  # Talar del Lago, solo ambientes >= 5
+    "ZP900000004",  # Santa Bárbara ARS → price_usd None
+    "ZP900000006",  # Barrancas de Santa Maria, tope watch 2500
+    "ZP900000007",  # Nordelta
 }
 
 DROP_IDS = {
-    "ZP900000007",  # Nordelta
+    "ZP900000005",  # Villa Pacheco (fuera de la lista)
     "ZP900000008",  # Tigre centro
     "ZP900000009",  # 3 dormitorios
     "ZP900000010",  # 4 ambientes ≠ 4 dormitorios
@@ -74,7 +75,6 @@ def test_fixture_maps_listings_with_stable_zonaprop_ids() -> None:
     for listing in listings:
         assert listing.source == "zonaprop"
         assert listing.property_type == "house"
-        assert listing.locality == "General Pacheco"
         assert listing.is_gated is True
         assert listing.has_pool is True
         assert listing.url
@@ -90,17 +90,21 @@ def test_keeps_watch_prices_and_does_not_apply_notify_band() -> None:
     by_id = _by_id()
 
     assert by_id["ZP900000001"].price_usd == 2200
-    assert by_id["ZP900000002"].price_usd == 3200
-    assert by_id["ZP900000006"].price_usd == 3500
+    assert by_id["ZP900000002"].price_usd == 2400
+    assert by_id["ZP900000006"].price_usd == 2500
     assert "ZP900000013" not in by_id
 
 
-def test_drops_nordelta_and_tigre_centro_without_pacheco() -> None:
+def test_keeps_listed_barrios_and_drops_others() -> None:
     by_id = _by_id()
-    assert "ZP900000007" not in by_id
+    assert by_id["ZP900000001"].barrio_name == "La Comarca"
+    assert by_id["ZP900000002"].barrio_name == "Los Alisos"
+    assert by_id["ZP900000003"].barrio_name == "Talar del Lago"
+    assert by_id["ZP900000004"].barrio_name == "Santa Bárbara"
+    assert by_id["ZP900000006"].barrio_name == "Barrancas de Santa Maria"
+    assert by_id["ZP900000007"].barrio_name == "Nordelta"
+    assert "ZP900000005" not in by_id
     assert "ZP900000008" not in by_id
-    assert by_id["ZP900000005"].barrio_name == "Villa Pacheco"
-    assert by_id["ZP900000006"].barrio_name == "Pacheco Golf Club"
 
 
 def test_bedrooms_not_confused_with_ambientes() -> None:
@@ -124,7 +128,7 @@ def test_pool_and_gated_need_evidence() -> None:
     assert "ZP900000011" not in ids
     assert "ZP900000012" not in ids
     assert "ZP900000014" not in ids
-    text_evidence = _by_id()["ZP900000005"]
+    text_evidence = _by_id()["ZP900000007"]
     assert text_evidence.is_gated is True
     assert text_evidence.has_pool is True
 
@@ -155,8 +159,8 @@ def test_fetch_listings_checks_robots_and_uses_html_serp() -> None:
 
     urls = [str(call.args[0]) for call in client.get.call_args_list]
     assert urls[0] == ROBOTS_URL
-    assert urls[1] == search_url()
-    assert "menos-de-" not in urls[1]
+    expected_paths = search_paths(prefs)
+    assert urls[1:] == [search_url(path=path) for path in expected_paths]
     assert "avisos-api" not in "".join(urls)
     assert "bsre.zonaprop" not in "".join(urls)
     headers = client.get.call_args_list[1].kwargs["headers"]
@@ -205,7 +209,8 @@ def test_fetch_raises_on_waf_without_retry() -> None:
     with pytest.raises(FetchNotAllowed):
         fetch_listings(load_prefs(), client=client)
 
-    assert client.get.call_count == 2
+    # robots + una SERP por barrio (todas WAF en pág. 1)
+    assert client.get.call_count == 1 + len(search_paths(load_prefs()))
 
 
 def test_fetch_keeps_earlier_pages_if_later_waf() -> None:
@@ -245,8 +250,17 @@ def test_fetch_keeps_earlier_pages_if_later_waf() -> None:
 
 
 def test_search_url_is_public_html_serp() -> None:
-    url = search_url(watch_max_usd=3500)
-    assert url == f"{BASE_URL}/casas-alquiler-general-pacheco.html"
+    prefs = load_prefs()
+    paths = search_paths(prefs)
+    assert paths[0] == "/casas-alquiler-talar-del-lago-1.html"
+    assert "/casas-alquiler-nordelta.html" in paths
+    assert "/casas-alquiler-los-alisos.html" in paths
+    assert "/casas-alquiler-la-comarca.html" in paths
+    assert "/casas-alquiler-santa-barbara.html" in paths
+    assert "/casas-alquiler-barrancas-de-santa-maria.html" in paths
+    assert "/casas-alquiler-barrancas-de-san-jose.html" in paths
+    url = search_url(watch_max_usd=2500, path=paths[0])
+    assert url == f"{BASE_URL}/casas-alquiler-talar-del-lago-1.html"
     assert "avisos-api" not in url
     assert "menos-de-" not in url
 
@@ -258,10 +272,10 @@ def test_live_schema_casas_plural_and_description_normalized() -> None:
             "listPostings": [
                 {
                     "postingId": "ZP-LIVE-1",
-                    "title": "Alquiler en El Encuentro",
+                    "title": "Alquiler en La Comarca",
                     "description": "",
                     "descriptionNormalized": (
-                        "Casa en barrio cerrado El Encuentro, General Pacheco, con pileta."
+                        "Casa en barrio cerrado La Comarca, General Pacheco, con pileta."
                     ),
                     "generatedTitle": "Casa · 270m² · 5 Ambientes",
                     "url": "/propiedades/clasificado/alclapin-ZP-LIVE-1.html",
@@ -287,7 +301,7 @@ def test_live_schema_casas_plural_and_description_normalized() -> None:
                     "postingLocation": {
                         "address": {"name": ""},
                         "location": {
-                            "name": "El Encuentro",
+                            "name": "La Comarca",
                             "parent": {"name": "General Pacheco"},
                         },
                     },
@@ -300,11 +314,41 @@ def test_live_schema_casas_plural_and_description_normalized() -> None:
     listing = listings[0]
     assert listing.source == "zonaprop"
     assert listing.external_id == "ZP-LIVE-1"
+    assert listing.barrio_name == "La Comarca"
     assert listing.is_gated is True
     assert listing.has_pool is True
     assert listing.bedrooms == 4
     assert listing.currency == "USD"
     assert listing.price_usd == 2200
+
+
+def test_maps_barrancas_de_san_jose() -> None:
+    payload = {
+        "listStore": {
+            "listPostings": [
+                {
+                    "postingId": "ZP-SAN-JOSE",
+                    "title": "Casa en Barrancas de San José",
+                    "descriptionNormalized": "Barrio cerrado Barrancas de San Jose, Tigre, pileta.",
+                    "url": "/propiedades/clasificado/alclapin-ZP-SAN-JOSE.html",
+                    "realEstateType": {"name": "Casas"},
+                    "priceOperationTypes": [{"prices": [{"currency": "USD", "amount": 2300}]}],
+                    "mainFeatures": {"CFT3": {"label": "Dormitorios", "value": "4"}},
+                    "postingLocation": {
+                        "address": {"name": ""},
+                        "location": {
+                            "name": "Barrancas de San José",
+                            "parent": {"name": "Tigre"},
+                        },
+                    },
+                }
+            ]
+        }
+    }
+    listings = listings_from_search(payload, load_prefs())
+    assert len(listings) == 1
+    assert listings[0].barrio_name == "Barrancas de San José"
+    assert listings[0].price_usd == 2300
 
 
 def test_optional_live_search() -> None:
@@ -316,10 +360,10 @@ def test_optional_live_search() -> None:
         pytest.skip("sin red")
 
     assert isinstance(listings, list)
+    prefs = load_prefs()
     for listing in listings:
         assert listing.source == "zonaprop"
         assert listing.external_id
         assert listing.property_type == "house"
-        assert "pacheco" in listing.locality.lower() or (
-            listing.barrio_name and "pacheco" in listing.barrio_name.lower()
-        )
+        if listing.price_usd is not None:
+            assert listing.price_usd <= prefs.watch_max_price_usd

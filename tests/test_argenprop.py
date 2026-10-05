@@ -21,14 +21,14 @@ FIXTURE_PATH = Path(__file__).parent / "fixtures" / "argenprop.html"
 
 KEEP_IDS = {
     "AP900000001",  # USD 2200 en rango de notify
-    "AP900000002",  # USD 3200 watch, no filtrar 1500–2500 acá
     "AP900000003",  # solo ambientes >= 5
     "AP900000004",  # ARS → price_usd None
     "AP900000005",  # Villa Pacheco, gated/pileta por texto
-    "AP900000006",  # Pacheco Golf, tope watch 3500
 }
 
 DROP_IDS = {
+    "AP900000002",  # USD 3200 > watch_max 2500
+    "AP900000006",  # USD 3500 > watch_max 2500
     "AP900000007",  # Nordelta
     "AP900000008",  # Tigre centro
     "AP900000009",  # 3 dormitorios
@@ -85,8 +85,8 @@ def test_keeps_watch_prices_and_does_not_apply_notify_band() -> None:
     by_id = _by_id()
 
     assert by_id["AP900000001"].price_usd == 2200
-    assert by_id["AP900000002"].price_usd == 3200
-    assert by_id["AP900000006"].price_usd == 3500
+    assert "AP900000002" not in by_id
+    assert "AP900000006" not in by_id
     assert "AP900000013" not in by_id
 
 
@@ -95,7 +95,6 @@ def test_drops_nordelta_and_tigre_centro_without_pacheco() -> None:
     assert "AP900000007" not in by_id
     assert "AP900000008" not in by_id
     assert by_id["AP900000005"].barrio_name == "Villa Pacheco"
-    assert by_id["AP900000006"].barrio_name == "Pacheco Golf Club"
 
 
 def test_bedrooms_not_confused_with_ambientes() -> None:
@@ -199,6 +198,39 @@ def test_fetch_raises_on_waf_without_retry() -> None:
         fetch_listings(load_prefs(), client=client)
 
     assert client.get.call_count == 2
+
+
+def test_fetch_keeps_earlier_pages_if_later_waf() -> None:
+    prefs = load_prefs()
+    robots = MagicMock()
+    robots.status_code = 200
+    robots.headers = {}
+    robots.text = SAMPLE_ROBOTS
+    robots.raise_for_status.return_value = None
+
+    page = MagicMock()
+    page.status_code = 200
+    page.headers = {"content-type": "text/html"}
+    page.text = _html() + '\n<a href="/casas/alquiler/general-pacheco?pagina-2">2</a>'
+    page.raise_for_status.return_value = None
+
+    blocked = MagicMock()
+    blocked.status_code = 403
+    blocked.headers = {}
+    blocked.text = "<TITLE>ERROR: The request could not be satisfied</TITLE>"
+
+    def fake_get(url, **kwargs):
+        if str(url) == ROBOTS_URL:
+            return robots
+        if "pagina-2" in str(url):
+            return blocked
+        return page
+
+    client = MagicMock()
+    client.get.side_effect = fake_get
+
+    listings = fetch_listings(prefs, client=client)
+    assert {listing.external_id for listing in listings} == KEEP_IDS
 
 
 def test_search_url_is_public_html_serp() -> None:

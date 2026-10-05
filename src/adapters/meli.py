@@ -1,3 +1,24 @@
+"""Adapter Mercado Libre Inmuebles. Parser de fixture HTML; fetch HTTP opcional.
+
+La API `/sites/MLA/search` responde 403 (búsqueda pública cerrada) aun con
+token válido. La SERP HTML de inmuebles sí responde; robots.txt permite la
+página 1 de `/casas/alquiler/.../general-pacheco/` y bloquea `/*_Desde_` y
+`/api/`. Este adapter parsea cards `.poly-card__content` (y JSON-LD si no
+hay cards). No usa la API de search ni paginación `_Desde_`. No burla WAF
+ni captcha.
+
+`jobs.ping_meli` / `check_connection` siguen pegándole a la API (token),
+aparte del scout.
+
+Cómo guardar la fixture a mano (si el GET está bloqueado):
+
+1. En un navegador normal abrí
+   https://inmuebles.mercadolibre.com.ar/casas/alquiler/bsas-gba-norte/tigre/general-pacheco/
+2. Si aparece captcha o challenge, resolvelo vos. No lo hagas desde acá.
+3. Archivo → Guardar como → Sólo HTML, a tests/fixtures/meli.html
+4. Con los `.poly-card__content` de la SERP alcanza.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -5,39 +26,174 @@ import json
 import logging
 import os
 import re
-import time
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
+from html.parser import HTMLParser
 from typing import Any
+from urllib.parse import urljoin, urlparse
+from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from src.adapters.errors import AdapterFetchError
 from src.models import Listing
 from src.prefs import Prefs, load_prefs
+
+log = logging.getLogger(__name__)
 
 SITE_ID = "MLA"
 SEARCH_URL = f"https://api.mercadolibre.com/sites/{SITE_ID}/search"
 USERS_ME_URL = "https://api.mercadolibre.com/users/me"
 CATEGORY_HOUSES_RENT = "MLA1467"
 CITY_TIGRE = "TUxBQ1RJRzk0ZjQw"
+BASE_URL = "https://inmuebles.mercadolibre.com.ar"
+ROBOTS_URL = f"{BASE_URL}/robots.txt"
+SEARCH_PATH = "/casas/alquiler/bsas-gba-norte/tigre/general-pacheco/"
 USER_AGENT = "rental-scout personal"
-PAGE_SIZE = 50
-PAGE_DELAY_SEC = 0.5
 REQUEST_TIMEOUT = 20.0
-MAX_OFFSET = 1000
 
 _BOOL_YES = {"sí", "si", "yes", "true", "242085"}
-_HOUSE_TYPES = {"casa", "house", "chalet", "dúplex", "duplex", "tríplex", "triplex", "cabaña", "cabana"}
+_HOUSE_TYPES = {
+    "casa",
+    "casas",
+    "house",
+    "chalet",
+    "dúplex",
+    "duplex",
+    "tríplex",
+    "triplex",
+    "cabaña",
+    "cabana",
+}
 _NOT_HOUSE = {"departamento", "depto", "apartamento", "apartment", "ph", "local", "oficina", "terreno"}
 _GATED_RE = re.compile(
-    r"barrio\s+(?:privado|cerrado)|country\s+club|\bcountry\b",
+    r"barrio\s+(?:privado|cerrado)|country\s+club|\bcountry\b|golf\s+club|acceso\s+controlado",
     re.IGNORECASE,
 )
 _POOL_RE = re.compile(r"\b(?:pileta|piscina)\b", re.IGNORECASE)
 _PACHECO_RE = re.compile(r"pacheco", re.IGNORECASE)
+_ID_RE = re.compile(r"MLA-(\d+)", re.IGNORECASE)
+_DORM_RE = re.compile(r"(\d+)\s*(?:dorm\.?|dormitorio)", re.IGNORECASE)
+_AMB_RE = re.compile(r"(\d+)\s*(?:amb\.?|ambiente)", re.IGNORECASE)
+_BATH_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:baño)", re.IGNORECASE)
+_M2_RE = re.compile(r"(\d+(?:[.,]\d+)?)\s*m[²2]", re.IGNORECASE)
+_BLOCKED_RE = re.compile(
+    r"just a moment|attention required|cf-challenge|cf-mitigated|access denied|captcha",
+    re.IGNORECASE,
+)
+_LD_RE = re.compile(
+    r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+    re.IGNORECASE | re.DOTALL,
+)
+_VOID_TAGS = {"img", "br", "hr", "input", "meta", "link", "source"}
 
-log = logging.getLogger(__name__)
+
+class FetchNotAllowed(RuntimeError):
+    """robots.txt, WAF o captcha: no se pega a Mercado Libre Inmuebles."""
+
+
+class _Capture:
+    __slots__ = ("field", "depth", "parts")
+
+    def __init__(self, field: str) -> None:
+        self.field = field
+        self.depth = 1
+        self.parts: list[str] = []
+
+
+class _PolyParser(HTMLParser):
+    """Extrae cards `.poly-card__content` de la SERP de inmuebles."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.cards: list[dict[str, Any]] = []
+        self._card: dict[str, Any] | None = None
+        self._card_depth = 0
+        self._captures: list[_Capture] = []
+        self._in_li = False
+        self._li_depth = 0
+        self._li_parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        ad = {key: (val or "") for key, val in attrs}
+        classes = ad.get("class", "").split()
+        if self._card is None:
+            if tag == "div" and "poly-card__content" in classes:
+                self._card = {"features": []}
+                self._card_depth = 1
+            return
+        self._card_depth += 1
+        if tag == "a" and "poly-component__title" in classes:
+            href = ad.get("href") or ""
+            if href:
+                self._card["permalink"] = href.split("#")[0]
+        field = None
+        if "poly-component__title" in classes:
+            field = "title"
+        elif "poly-component__headline" in classes:
+            field = "headline"
+        elif "poly-component__location" in classes:
+            field = "location"
+        elif "andes-money-amount__currency-symbol" in classes:
+            field = "currency"
+        elif "andes-money-amount__fraction" in classes:
+            field = "price_text"
+        if field:
+            self._captures.append(_Capture(field))
+        if tag == "li" and "poly-attributes_list__item" in classes:
+            self._in_li = True
+            self._li_depth = 1
+            self._li_parts = []
+        elif self._in_li:
+            self._li_depth += 1
+        if tag in _VOID_TAGS and self._card is not None:
+            self._card_depth -= 1
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._card is None:
+            return
+        if tag in _VOID_TAGS:
+            return
+        if self._in_li:
+            self._li_depth -= 1
+            if self._li_depth <= 0:
+                text = " ".join(self._li_parts).strip()
+                if text:
+                    self._card["features"].append(text)
+                self._in_li = False
+                self._li_parts = []
+        still: list[_Capture] = []
+        for cap in self._captures:
+            cap.depth -= 1
+            if cap.depth <= 0:
+                text = " ".join(cap.parts).strip()
+                if text:
+                    self._card[cap.field] = text
+            else:
+                still.append(cap)
+        self._captures = still
+        self._card_depth -= 1
+        if self._card_depth <= 0:
+            self.cards.append(self._card)
+            self._card = None
+            self._captures = []
+            self._in_li = False
+
+    def handle_data(self, data: str) -> None:
+        text = data.strip()
+        if not text or self._card is None:
+            return
+        if self._in_li:
+            self._li_parts.append(text)
+        for cap in self._captures:
+            cap.parts.append(text)
+
+
+def search_url(*, page: int = 1) -> str:
+    """SERP HTML de casas en alquiler en General Pacheco. Solo pág. 1 está permitida."""
+    if page <= 1:
+        return urljoin(BASE_URL, SEARCH_PATH)
+    return urljoin(BASE_URL, f"{SEARCH_PATH.rstrip('/')}/_Desde_{48 * (page - 1) + 1}")
 
 
 def fetch_listings(
@@ -45,27 +201,43 @@ def fetch_listings(
     *,
     client: httpx.Client | None = None,
 ) -> list[Listing]:
-    """Trae casas en alquiler de ML Inmuebles y las mapea a Listing."""
+    """GET de la SERP HTML si robots.txt lo permite. No burla WAF/captcha."""
     prefs = prefs or load_prefs()
     payload = _fetch_search(client=client)
     return listings_from_search(payload, prefs)
 
 
+def listings_from_html(html: str, prefs: Prefs | None = None) -> list[Listing]:
+    """Mapea SERP HTML (poly-cards / JSON-LD) a Listing[] (sin red)."""
+    return listings_from_search({"results": _items_from_html(html)}, prefs)
+
+
 def listings_from_search(payload: dict[str, Any], prefs: Prefs | None = None) -> list[Listing]:
-    """Mapea un JSON de /sites/MLA/search a Listing[] filtrados (sin red)."""
+    """Mapea results[] (API o cards HTML) a Listing[] filtrados (sin red)."""
     prefs = prefs or load_prefs()
     listings: list[Listing] = []
     seen: set[str] = set()
-    for item in payload.get("results") or []:
+    skipped: Counter[str] = Counter()
+    raw = payload.get("results") or []
+    for item in raw:
         if not isinstance(item, dict):
+            skipped["not_object"] += 1
             continue
         listing = _map_item(item, prefs)
-        if listing is None or listing.external_id in seen:
+        if listing is None:
+            skipped["dropped"] += 1
+            continue
+        if listing.external_id in seen:
+            skipped["duplicate"] += 1
             continue
         seen.add(listing.external_id)
         listings.append(listing)
-    raw = len(payload.get("results") or [])
-    log.info("meli mapped %s listings from %s results", len(listings), raw)
+    log.info("meli mapped %s listings from %s results", len(listings), len(raw))
+    if skipped:
+        log.info(
+            "meli skipped %s",
+            " ".join(f"{name}={count}" for name, count in skipped.most_common()),
+        )
     return listings
 
 
@@ -73,42 +245,244 @@ def _fetch_search(*, client: httpx.Client | None) -> dict[str, Any]:
     owned = client is None
     http = client or httpx.Client(timeout=REQUEST_TIMEOUT)
     try:
-        merged: dict[str, Any] = {"site_id": SITE_ID, "results": []}
-        offset = 0
-        while offset <= MAX_OFFSET:
-            response = http.get(
-                SEARCH_URL,
-                params=_search_params(offset),
-                headers=_request_headers(),
-                timeout=REQUEST_TIMEOUT,
+        robots_text = _load_robots(http)
+        url = search_url()
+        if not _allowed_by_robots(robots_text, url):
+            raise FetchNotAllowed(f"robots.txt no permite {url}")
+        response = http.get(
+            url,
+            headers=_html_headers(),
+            timeout=REQUEST_TIMEOUT,
+            follow_redirects=True,
+        )
+        if _is_blocked(response):
+            raise FetchNotAllowed("Mercado Libre bloqueó el GET (WAF/captcha/HTTP)")
+        response.raise_for_status()
+        items = _items_from_html(response.text)
+        if not items:
+            raise FetchNotAllowed(
+                "la SERP no trae poly-cards ni JSON-LD "
+                "(WAF/JS; guardá tests/fixtures/meli.html a mano)"
             )
-            if response.status_code in {401, 403}:
-                raise AdapterFetchError(_search_auth_error(response.status_code))
-            response.raise_for_status()
-            page = response.json()
-            if offset == 0:
-                merged = {**page, "results": []}
-            results = page.get("results") or []
-            merged["results"].extend(results)
-            paging = page.get("paging") or {}
-            total = int(paging.get("total") or 0)
-            offset += len(results)
-            if not results or offset >= total or len(results) < PAGE_SIZE:
-                break
-            time.sleep(PAGE_DELAY_SEC)
-        return merged
+        return {"site_id": SITE_ID, "results": items}
     finally:
         if owned:
             http.close()
 
 
-def _search_params(offset: int) -> dict[str, str | int]:
+def _load_robots(http: httpx.Client) -> str:
+    response = http.get(ROBOTS_URL, headers=_html_headers(), timeout=REQUEST_TIMEOUT)
+    if _is_blocked(response):
+        raise FetchNotAllowed("robots.txt bloqueado (WAF/captcha/HTTP)")
+    response.raise_for_status()
+    return response.text
+
+
+def _allowed_by_robots(robots_text: str, url: str) -> bool:
+    path = urlparse(url).path or "/"
+    if "_Desde_" in path or "/api/" in path:
+        return False
+    parser = RobotFileParser()
+    parser.parse(robots_text.splitlines())
+    return parser.can_fetch(USER_AGENT, url)
+
+
+def _is_blocked(response: httpx.Response) -> bool:
+    if response.status_code in {401, 403, 429, 503}:
+        return True
+    mitigated = str(response.headers.get("cf-mitigated") or "").lower()
+    if mitigated in {"challenge", "captcha"}:
+        return True
+    snippet = (response.text or "")[:8000]
+    return bool(_BLOCKED_RE.search(snippet))
+
+
+def _html_headers() -> dict[str, str]:
     return {
-        "category": CATEGORY_HOUSES_RENT,
-        "city": CITY_TIGRE,
-        "limit": PAGE_SIZE,
-        "offset": offset,
+        "User-Agent": USER_AGENT,
+        "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "es-AR,es;q=0.9",
     }
+
+
+def _items_from_html(html: str) -> list[dict[str, Any]]:
+    parser = _PolyParser()
+    parser.feed(html)
+    parser.close()
+    cards = [_card_to_item(card) for card in parser.cards]
+    cards = [item for item in cards if item.get("id")]
+    if cards:
+        return cards
+    return _items_from_jsonld(html)
+
+
+def _card_to_item(card: dict[str, Any]) -> dict[str, Any]:
+    permalink = str(card.get("permalink") or "").strip()
+    external_id = _id_from_url(permalink)
+    title = str(card.get("title") or "").strip()
+    headline = str(card.get("headline") or "").strip()
+    location = str(card.get("location") or "").strip()
+    currency = _currency_from_symbol(str(card.get("currency") or ""))
+    price = _parse_price_text(str(card.get("price_text") or ""))
+    parts = [p.strip() for p in location.split(",") if p.strip()]
+    neighborhood = parts[0] if parts else ""
+    city = parts[1] if len(parts) > 1 else ""
+    prop = "Departamento" if _NOT_HOUSE.intersection(headline.lower().split()) or (
+        "departamento" in headline.lower()
+    ) else "Casa"
+    if "departamento" in title.lower() or "depto" in title.lower():
+        prop = "Departamento"
+    attributes: list[dict[str, Any]] = [
+        {"id": "PROPERTY_TYPE", "value_name": prop},
+    ]
+    for feature in card.get("features") or []:
+        attributes.extend(_attrs_from_feature(str(feature)))
+    feat = " ".join(str(x) for x in (card.get("features") or []))
+    blob = f"{title} {headline} {location} {feat}"
+    if _GATED_RE.search(blob):
+        attributes.append({"id": "IN_GATED_COMMUNITY", "value_id": "242085", "value_name": "Sí"})
+    if _POOL_RE.search(blob):
+        attributes.append({"id": "HAS_SWIMMING_POOL", "value_id": "242085", "value_name": "Sí"})
+    return {
+        "id": external_id,
+        "title": title or external_id,
+        "price": price or 0,
+        "currency_id": currency,
+        "permalink": permalink,
+        "category_id": "MLA1473" if prop == "Departamento" else CATEGORY_HOUSES_RENT,
+        "location": {
+            "neighborhood": {"name": neighborhood},
+            "city": {"name": city},
+            "address_line": location,
+        },
+        "attributes": attributes,
+    }
+
+
+def _attrs_from_feature(feature: str) -> list[dict[str, Any]]:
+    attrs: list[dict[str, Any]] = []
+    dorm = _DORM_RE.search(feature)
+    if dorm:
+        attrs.append({"id": "BEDROOMS", "value_name": dorm.group(1)})
+    amb = _AMB_RE.search(feature)
+    if amb:
+        attrs.append({"id": "ROOMS", "value_name": amb.group(1)})
+    bath = _BATH_RE.search(feature)
+    if bath:
+        attrs.append({"id": "FULL_BATHROOMS", "value_name": bath.group(1)})
+    m2 = _M2_RE.search(feature)
+    if m2:
+        number = _parse_leading_number(m2.group(1))
+        attrs.append(
+            {
+                "id": "COVERED_AREA",
+                "value_name": feature.strip(),
+                "value_struct": {"number": number, "unit": "m²"} if number is not None else None,
+            }
+        )
+    return attrs
+
+
+def _items_from_jsonld(html: str) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for match in _LD_RE.finditer(html):
+        try:
+            payload = json.loads(match.group(1))
+        except ValueError:
+            continue
+        graph = payload.get("@graph") if isinstance(payload, dict) else None
+        nodes = graph if isinstance(graph, list) else [payload]
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            types = node.get("@type")
+            type_names = types if isinstance(types, list) else [types]
+            if "RealEstateListing" not in {str(t) for t in type_names}:
+                continue
+            item = _jsonld_to_item(node)
+            if not item.get("id") or item["id"] in seen:
+                continue
+            seen.add(item["id"])
+            items.append(item)
+    return items
+
+
+def _jsonld_to_item(node: dict[str, Any]) -> dict[str, Any]:
+    offers = node.get("offers") if isinstance(node.get("offers"), dict) else {}
+    address = node.get("address") if isinstance(node.get("address"), dict) else {}
+    floor = node.get("floorSize") if isinstance(node.get("floorSize"), dict) else {}
+    permalink = str(offers.get("url") or node.get("mainEntityOfPage") or "").split("#")[0]
+    external_id = _id_from_url(permalink)
+    title = str(node.get("name") or "").strip()
+    currency = str(offers.get("priceCurrency") or "ARS").upper()
+    try:
+        price = float(offers.get("price") or 0)
+    except (TypeError, ValueError):
+        price = 0.0
+    rooms = node.get("numberOfRooms")
+    attributes: list[dict[str, Any]] = [
+        {"id": "PROPERTY_TYPE", "value_name": "Casa"},
+    ]
+    if rooms is not None:
+        attributes.append({"id": "ROOMS", "value_name": str(rooms)})
+    if floor.get("value") is not None:
+        attributes.append(
+            {
+                "id": "COVERED_AREA",
+                "value_name": str(floor.get("value")),
+                "value_struct": {"number": floor.get("value"), "unit": "m²"},
+            }
+        )
+    image = node.get("image")
+    blob = f"{title} {address.get('addressLocality') or ''}"
+    if _GATED_RE.search(blob):
+        attributes.append({"id": "IN_GATED_COMMUNITY", "value_id": "242085", "value_name": "Sí"})
+    if _POOL_RE.search(blob):
+        attributes.append({"id": "HAS_SWIMMING_POOL", "value_id": "242085", "value_name": "Sí"})
+    if "departamento" in title.lower():
+        attributes[0]["value_name"] = "Departamento"
+    return {
+        "id": external_id,
+        "title": title or external_id,
+        "price": price,
+        "currency_id": currency,
+        "permalink": permalink,
+        "thumbnail": image if isinstance(image, str) else None,
+        "category_id": CATEGORY_HOUSES_RENT,
+        "date_created": node.get("datePosted"),
+        "location": {
+            "neighborhood": {"name": str(address.get("addressLocality") or "")},
+            "city": {"name": str(address.get("addressLocality") or "")},
+            "address_line": str(address.get("streetAddress") or ""),
+        },
+        "attributes": attributes,
+    }
+
+
+def _id_from_url(url: str) -> str:
+    match = _ID_RE.search(url)
+    if match:
+        return f"MLA{match.group(1)}"
+    bare = re.search(r"(MLA\d{8,})", url, re.IGNORECASE)
+    return bare.group(1).upper() if bare else ""
+
+
+def _currency_from_symbol(symbol: str) -> str:
+    text = symbol.strip().upper().replace(" ", "")
+    if "US" in text or text == "USD":
+        return "USD"
+    return "ARS"
+
+
+def _parse_price_text(text: str) -> float:
+    digits = re.sub(r"[^\d]", "", text)
+    if not digits:
+        return 0.0
+    try:
+        return float(digits)
+    except ValueError:
+        return 0.0
 
 
 def _meli_access_token() -> str:
@@ -121,36 +495,31 @@ def _looks_like_user_token(token: str) -> bool:
     return upper.startswith(("APP_USR-", "TG-")) or len(token) >= 48
 
 
-def _search_auth_error(status_code: int) -> str:
-    token = _meli_access_token()
-    if not token:
-        return (
-            "Mercado Libre ya no deja buscar sin OAuth "
-            f"(HTTP {status_code}). Creá una app en "
-            "https://developers.mercadolibre.com.ar , autorizala con "
-            "tu usuario, y poné MELI_ACCESS_TOKEN en .env "
-            "(Authorization Bearer)."
-        )
-    if not _looks_like_user_token(token):
-        return (
-            f"Mercado Libre rechazó MELI_ACCESS_TOKEN (HTTP {status_code}). "
-            "Tiene que ser el access_token del usuario (empieza con APP_USR-), "
-            "no el Client Secret ni el App ID. Autorizá la app en "
-            "https://developers.mercadolibre.com.ar y pegá el token largo."
-        )
-    return (
-        f"Mercado Libre rechazó el access token (HTTP {status_code}). "
-        "Renovarlo en https://developers.mercadolibre.com.ar "
-        "(autorizar de nuevo y actualizar MELI_ACCESS_TOKEN)."
-    )
+def _search_params(offset: int) -> dict[str, str | int]:
+    return {
+        "category": CATEGORY_HOUSES_RENT,
+        "city": CITY_TIGRE,
+        "limit": 1 if offset == 0 else 50,
+        "offset": offset,
+    }
 
 
-def _request_headers() -> dict[str, str]:
+def _api_headers() -> dict[str, str]:
     headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
     token = _meli_access_token()
     if token:
         headers["Authorization"] = f"Bearer {token}"
     return headers
+
+
+def _response_error_summary(response: httpx.Response) -> str:
+    try:
+        data = response.json()
+    except ValueError:
+        return ""
+    if not isinstance(data, dict):
+        return ""
+    return str(data.get("message") or data.get("error") or "").strip()
 
 
 @dataclass(frozen=True)
@@ -163,6 +532,7 @@ class ConnectionCheck:
     nickname: str | None = None
     search_http: int | None = None
     search_total: int | None = None
+    search_error: str | None = None
 
 
 def check_connection(*, client: httpx.Client | None = None) -> ConnectionCheck:
@@ -190,13 +560,17 @@ def check_connection(*, client: httpx.Client | None = None) -> ConnectionCheck:
     try:
         me = http.get(
             USERS_ME_URL,
-            headers=_request_headers(),
+            headers=_api_headers(),
             timeout=REQUEST_TIMEOUT,
         )
         if me.status_code in {401, 403}:
             return ConnectionCheck(
                 ok=False,
-                message=_search_auth_error(me.status_code),
+                message=(
+                    f"Mercado Libre rechazó MELI_ACCESS_TOKEN en /users/me "
+                    f"(HTTP {me.status_code}). Autorizá de nuevo y actualizá "
+                    "MELI_ACCESS_TOKEN (oauth/README.md)."
+                ),
             )
         me.raise_for_status()
         body: Any = {}
@@ -211,19 +585,23 @@ def check_connection(*, client: httpx.Client | None = None) -> ConnectionCheck:
 
         search = http.get(
             SEARCH_URL,
-            params={**_search_params(0), "limit": 1},
-            headers=_request_headers(),
+            params=_search_params(0),
+            headers=_api_headers(),
             timeout=REQUEST_TIMEOUT,
         )
         if search.status_code in {401, 403}:
+            detail = _response_error_summary(search)
             return ConnectionCheck(
                 ok=False,
                 user_id=user_id,
                 nickname=nickname,
                 search_http=search.status_code,
+                search_error=detail or None,
                 message=(
-                    f"token válido (/users/me) pero la búsqueda devolvió HTTP {search.status_code}. "
-                    + _search_auth_error(search.status_code)
+                    f"token válido (/users/me) pero /sites/MLA/search está prohibido "
+                    f"(HTTP {search.status_code}"
+                    + (f" {detail}" if detail else "")
+                    + "). El scout no usa esa API: busca la SERP HTML de inmuebles."
                 ),
             )
         search.raise_for_status()
@@ -247,7 +625,7 @@ def check_connection(*, client: httpx.Client | None = None) -> ConnectionCheck:
             nickname=nickname,
             search_http=search.status_code,
             search_total=total,
-            message="ok: Mercado Libre aceptó el token y la búsqueda",
+            message="ok: Mercado Libre aceptó el token y la búsqueda API",
         )
     except httpx.HTTPError as exc:
         return ConnectionCheck(ok=False, message=f"error de red contra Mercado Libre: {exc}")
@@ -446,7 +824,8 @@ def _url(item: dict[str, Any], external_id: str) -> str:
     permalink = str(item.get("permalink") or "").strip()
     if permalink:
         return permalink
-    return f"https://inmueble.mercadolibre.com.ar/{external_id}"
+    dashed = external_id.replace("MLA", "MLA-", 1) if external_id.startswith("MLA") else external_id
+    return f"https://casa.mercadolibre.com.ar/{dashed}"
 
 
 def _photos(item: dict[str, Any]) -> list[str]:

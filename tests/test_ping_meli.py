@@ -54,7 +54,8 @@ def test_check_connection_token_rejected_on_users_me(monkeypatch) -> None:
     result = check_connection(client=client)
 
     assert result.ok is False
-    assert "rechazó el access token" in result.message
+    assert "MELI_ACCESS_TOKEN" in result.message
+    assert "/users/me" in result.message
     assert client.get.call_args.args[0] == USERS_ME_URL
     assert client.get.call_count == 1
 
@@ -105,7 +106,8 @@ def test_check_connection_search_forbidden_after_valid_me(monkeypatch) -> None:
     assert result.ok is False
     assert result.user_id == "111"
     assert result.search_http == 403
-    assert "búsqueda devolvió HTTP 403" in result.message
+    assert result.search_error == "forbidden"
+    assert "El scout no usa esa API" in result.message
 
 
 def test_ping_meli_job_prints_ok(monkeypatch, capsys) -> None:
