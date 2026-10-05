@@ -114,6 +114,9 @@ def test_watch_listed_barrios(prefs) -> None:
         title="Casa en Santa Bárbara",
     )
     assert is_watch(accented, prefs) is True
+    for talar in ("Talar del Lago I", "Talar del Lago II"):
+        listing = make_listing(barrio_name=talar, locality="Tigre", title=f"Casa en {talar}")
+        assert is_watch(listing, prefs) is True, talar
 
 
 def test_not_watch_without_price_usd(prefs) -> None:

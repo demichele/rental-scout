@@ -1,7 +1,7 @@
 # 3 dormitorios y 5+ ambientes. Los barrios de la lista ya son countries.
 locality: Tigre
 barrios:
-  - Talar del Lago
+  - Talar del Lago  # SERPs: talar-del-lago-i y talar-del-lago-ii
   - Nordelta
   - Los Alisos
   - La Comarca

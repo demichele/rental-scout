@@ -56,6 +56,19 @@ def _fmt_usd(value: float) -> str:
     return f"{number:.2f}".rstrip("0").rstrip(".")
 
 
+def _fmt_expenses(value: float | None) -> str:
+    if value is None:
+        return "—"
+    number = float(value)
+    if number <= 0:
+        return "—"
+    if number.is_integer():
+        grouped = f"{int(number):,}".replace(",", ".")
+        return f"$ {grouped}"
+    grouped = f"{number:,.2f}"
+    return f"$ {grouped}"
+
+
 def _in_notify_range(price_usd: float, prefs: Prefs) -> bool:
     return prefs.min_price_usd <= price_usd <= prefs.max_price_usd
 
@@ -81,8 +94,6 @@ def _qualify_reasons(listing: Listing, prefs: Prefs, price_usd: float | None) ->
         reasons.append(f"{prefs.min_ambientes}+ ambientes")
     if listing.bedrooms is not None and listing.bedrooms >= prefs.min_bedrooms:
         reasons.append(f"{prefs.min_bedrooms}+ dormitorios")
-    if listing.has_pool:
-        reasons.append("pileta")
     if price_usd is not None and _in_notify_range(price_usd, prefs):
         reasons.append(_range_label(prefs))
     return ", ".join(reasons) if reasons else "cumple el brief de búsqueda"
@@ -109,8 +120,8 @@ def _listing_block(listing: Listing, price_usd: float | None) -> list[str]:
         _html(listing.title),
         f"Barrio: {_html(barrio or '—')}",
         f"Dormitorios: {bedrooms if bedrooms is not None else '—'}",
-        f"Pileta: {'sí' if listing.has_pool else 'no'}",
         f"Precio: {price_line}",
+        f"Expensas: {_fmt_expenses(listing.expenses)}",
         _anuncio_link(listing),
     ]
 

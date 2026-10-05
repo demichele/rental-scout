@@ -25,7 +25,7 @@ import time
 from collections import Counter
 from datetime import datetime
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
 
 import httpx
@@ -46,9 +46,10 @@ MAX_PAGES = 5
 # SERP HTML. robots.txt permite pág. 1 y pagina-2..5; no /avisos-api/.
 SEARCH_PATH = "/casas-alquiler-nordelta.html"
 
-# Slugs de ZonaProp por barrio (sin acento). Talar del Lago son dos countries.
+# Slugs de ZonaProp por barrio (sin acento). Talar del Lago son dos countries
+# (I y II); los slugs *-1 / *-2 redirigen 301 al SERP nacional.
 _BARRIO_SEARCH_SLUGS: dict[str, tuple[str, ...]] = {
-    "talar del lago": ("talar-del-lago-1", "talar-del-lago-2"),
+    "talar del lago": ("talar-del-lago-i", "talar-del-lago-ii"),
     "nordelta": ("nordelta",),
     "los alisos": ("los-alisos",),
     "la comarca": ("la-comarca",),
@@ -76,6 +77,10 @@ _GATED_RE = re.compile(
 )
 _POOL_RE = re.compile(r"\b(?:pileta|piscina)\b", re.IGNORECASE)
 _PRELOADED_RE = re.compile(r"window\.__PRELOADED_STATE__\s*=\s*")
+_SERP_SLUG_RE = re.compile(
+    r"^/casas-alquiler-(.+?)(?:-pagina-\d+)?\.html$",
+    re.IGNORECASE,
+)
 _BLOCKED_RE = re.compile(
     r"just a moment|attention required|cf-challenge|cf-mitigated|access denied",
     re.IGNORECASE,
@@ -200,6 +205,13 @@ def _fetch_search(prefs: Prefs, *, client: httpx.Client | None) -> dict[str, Any
                     timeout=REQUEST_TIMEOUT,
                     follow_redirects=True,
                 )
+                if _off_barrio_redirect(url, response):
+                    log.warning(
+                        "ZonaProp redirigió %s a %s; se salta (otro barrio)",
+                        url,
+                        getattr(response, "url", ""),
+                    )
+                    break
                 if response.status_code == 404:
                     log.warning("ZonaProp 404 en %s; se salta", url)
                     break
@@ -274,6 +286,37 @@ def _allowed_by_robots(robots_text: str, url: str) -> bool:
     parser = RobotFileParser()
     parser.parse(robots_text.splitlines())
     return parser.can_fetch(USER_AGENT, url)
+
+
+def _serp_barrio_slug(path: str) -> str | None:
+    match = _SERP_SLUG_RE.match(path)
+    return match.group(1).casefold() if match else None
+
+
+def _response_path(response: httpx.Response) -> str:
+    final = getattr(response, "url", None)
+    if final is None:
+        return ""
+    path = getattr(final, "path", None)
+    if isinstance(path, str) and path.startswith("/"):
+        return path
+    text = str(final)
+    if "://" in text:
+        return urlparse(text).path
+    if text.startswith("/"):
+        return text
+    return ""
+
+
+def _off_barrio_redirect(requested_url: str, response: httpx.Response) -> bool:
+    """True si el 301/302 dejó el SERP del barrio (p.ej. talar-del-lago-1 → /casas-alquiler.html)."""
+    requested_slug = _serp_barrio_slug(urlparse(requested_url).path)
+    if not requested_slug:
+        return False
+    final_path = _response_path(response)
+    if not final_path:
+        return False
+    return _serp_barrio_slug(final_path) != requested_slug
 
 
 def _is_blocked(response: httpx.Response) -> bool:
