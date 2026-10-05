@@ -73,7 +73,7 @@ The worker is **read-only against the portals** and **append-mostly against its 
 
 ## Search brief
 
-The brief is data. Change `prefs.yaml` to retarget the **rental** scout, and `prefs.sale.yaml` for **houses for sale** (Tigre and General Pacheco, ≤ 80.000 USD). Both hunts run in the same `jobs.run_once` pass and the same Telegram chat. Sale alerts start with `VENTA - CASA EN TIGRE por 55.000 USD`.
+The brief is data. Change `prefs.yaml` to retarget the **rental** scout, and `prefs.sale.yaml` for **houses for sale** (Tigre and General Pacheco, 10.000–80.000 USD). Both hunts run in the same `jobs.run_once` pass and the same Telegram chat. Sale alerts start with `VENTA - CASA EN TIGRE por 55.000 USD`.
 
 - Neighborhoods (countries / barrios)
 - House vs other types

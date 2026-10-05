@@ -65,7 +65,7 @@ def test_sale_fixture_keeps_deals_and_drops_the_rest(sale_prefs) -> None:
         assert listing.operation == "sale"
         assert listing.property_type == "house"
         assert listing.price_usd is not None
-        assert listing.price_usd <= 80000
+        assert 10000 <= listing.price_usd <= 80000
 
 
 def test_sale_keeps_small_houses_without_bedroom_minimum(sale_prefs) -> None:

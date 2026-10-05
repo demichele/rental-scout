@@ -43,6 +43,8 @@ def is_watch(listing: Listing, prefs: Prefs) -> bool:
     """True si el aviso se guarda: casa, barrio, tamaño, USD ≤ watch_max."""
     if listing.price_usd is None:
         return False
+    if listing.price_usd < prefs.min_price_usd:
+        return False
     if listing.price_usd > prefs.watch_max_price_usd:
         return False
     if not _is_wanted_type(listing, prefs):

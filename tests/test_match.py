@@ -110,6 +110,45 @@ def test_sale_drops_over_80k_and_other_partido(sale_prefs) -> None:
     assert is_watch(other, sale_prefs) is False
 
 
+def test_sale_drops_zero_and_below_10k(sale_prefs) -> None:
+    zero = make_listing(
+        operation="sale",
+        locality="Tigre",
+        barrio_name="Tigre",
+        title="Casa en Tigre",
+        bedrooms=None,
+        ambientes=None,
+        price=0,
+        price_usd=0,
+    )
+    cheap = make_listing(
+        operation="sale",
+        locality="Tigre",
+        barrio_name="Tigre",
+        title="Casa en Tigre",
+        bedrooms=None,
+        ambientes=None,
+        price=9999,
+        price_usd=9999,
+    )
+    floor = make_listing(
+        operation="sale",
+        locality="Tigre",
+        barrio_name="Tigre",
+        title="Casa en Tigre",
+        bedrooms=None,
+        ambientes=None,
+        price=10000,
+        price_usd=10000,
+    )
+    assert is_watch(zero, sale_prefs) is False
+    assert is_match(zero, sale_prefs) is False
+    assert is_watch(cheap, sale_prefs) is False
+    assert is_match(cheap, sale_prefs) is False
+    assert is_watch(floor, sale_prefs) is True
+    assert is_match(floor, sale_prefs) is True
+
+
 def test_sale_and_rent_do_not_share_notification_identity(
     db_path: Path, prefs, sale_prefs, monkeypatch
 ) -> None:
