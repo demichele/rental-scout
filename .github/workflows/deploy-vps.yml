@@ -1,0 +1,29 @@
+name: Deploy VPS
+
+on:
+  push:
+    branches:
+      - zonaprop-tigre-search
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull and run on VPS
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            sudo -u scout bash -lc '
+              set -euo pipefail
+              cd /opt/rental-scout
+              git fetch origin
+              git pull --ff-only origin zonaprop-tigre-search
+              ./venv/bin/pip install -e .
+            '
+            sudo systemctl start rental-scout.service

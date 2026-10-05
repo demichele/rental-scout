@@ -63,6 +63,65 @@ def _text(mock_post) -> str:
     return _payload(mock_post)["text"]
 
 
+def test_send_new_sale_uses_venta_headline(telegram_http) -> None:
+    send_new(
+        make_listing(
+            operation="sale",
+            source="zonaprop_venta",
+            locality="Tigre",
+            barrio_name="Tigre centro",
+            title="Casa en venta en Tigre",
+            price=55000,
+            price_usd=55000,
+            bedrooms=2,
+        )
+    )
+    text = _text(telegram_http)
+    assert text.startswith("VENTA - CASA EN TIGRE por 55.000 USD")
+    assert "Casa en Tigre centro por" not in text
+    assert "Por qué califica:" not in text
+    assert "1500–2500" not in text
+    assert "Casa en venta en Tigre" in text
+    assert "Precio: 55000 USD" in text
+
+
+def test_send_new_sale_pacheco_headline(telegram_http) -> None:
+    send_new(
+        make_listing(
+            operation="sale",
+            source="zonaprop_venta",
+            locality="General Pacheco",
+            barrio_name=None,
+            title="Casa en General Pacheco",
+            price=80000,
+            price_usd=80000,
+        )
+    )
+    text = _text(telegram_http)
+    assert text.startswith("VENTA - CASA EN PACHECO por 80.000 USD")
+
+
+def test_send_price_drop_sale_keeps_venta_line(telegram_http) -> None:
+    send_price_drop(
+        make_listing(
+            operation="sale",
+            source="zonaprop_venta",
+            locality="Tigre",
+            barrio_name="Tigre",
+            title="Casa en venta",
+            price=50000,
+            price_usd=50000,
+        ),
+        old_usd=55000,
+        new_usd=50000,
+    )
+    text = _text(telegram_http)
+    assert text.startswith("BAJÓ DE PRECIO")
+    assert "VENTA - CASA EN TIGRE por 50.000 USD" in text
+    assert "Por qué califica:" not in text
+    assert "antes 55000 → ahora 50000" in text
+
+
 def test_send_new_posts_listing_fields(telegram_http) -> None:
     send_new(make_listing())
 

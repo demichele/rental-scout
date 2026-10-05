@@ -5,8 +5,9 @@ from html import escape
 
 import httpx
 
+from src.match import fold_text
 from src.models import Listing
-from src.prefs import Prefs, load_prefs
+from src.prefs import Prefs, prefs_for_listing
 
 TELEGRAM_API = "https://api.telegram.org"
 SEND_TIMEOUT = 20.0
@@ -17,12 +18,12 @@ class TelegramConfigError(RuntimeError):
 
 
 def send_new(listing: Listing) -> None:
-    prefs = load_prefs()
+    prefs = prefs_for_listing(listing.operation)
     _send(_format_new(listing, prefs), preview_url=listing.url)
 
 
 def send_price_drop(listing: Listing, old_usd: float, new_usd: float) -> None:
-    prefs = load_prefs()
+    prefs = prefs_for_listing(listing.operation)
     _send(_format_price_drop(listing, old_usd, new_usd, prefs), preview_url=listing.url)
 
 
@@ -54,6 +55,14 @@ def _fmt_usd(value: float) -> str:
     if number.is_integer():
         return str(int(number))
     return f"{number:.2f}".rstrip("0").rstrip(".")
+
+
+def _fmt_grouped_usd(value: float) -> str:
+    number = float(value)
+    if number.is_integer():
+        return f"{int(number):,}".replace(",", ".")
+    grouped = f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return grouped.rstrip("0").rstrip(",")
 
 
 def _fmt_expenses(value: float | None) -> str:
@@ -140,7 +149,28 @@ def _price_label(price_usd: float | None) -> str:
     return f"{_fmt_usd(price_usd)} USD"
 
 
+def _sale_place_label(listing: Listing) -> str:
+    blob = fold_text(" ".join(part for part in (listing.locality, listing.barrio_name) if part))
+    if "pacheco" in blob:
+        return "PACHECO"
+    if "tigre" in blob:
+        return "TIGRE"
+    loc = (listing.locality or "").strip()
+    return loc.upper() if loc else "—"
+
+
+def _sale_headline(listing: Listing, price_usd: float | None) -> str:
+    if price_usd is None:
+        price = "—"
+    else:
+        price = f"{_fmt_grouped_usd(price_usd)} USD"
+    return f"VENTA - CASA EN {_html(_sale_place_label(listing))} por {price}"
+
+
 def _format_new(listing: Listing, prefs: Prefs) -> str:
+    if listing.operation == "sale":
+        lines = [_sale_headline(listing, listing.price_usd), "", *_listing_block(listing, listing.price_usd)]
+        return "\n".join(lines)
     headline = f"Casa en {_html(_place(listing))} por {_price_label(listing.price_usd)}"
     lines = [headline, "", *_listing_block(listing, listing.price_usd), ""]
     lines.append(f"Por qué califica: {_html(_qualify_reasons(listing, prefs, listing.price_usd))}")
@@ -151,6 +181,15 @@ def _format_price_drop(
     listing: Listing, old_usd: float, new_usd: float, prefs: Prefs
 ) -> str:
     drop = old_usd - new_usd
+    if listing.operation == "sale":
+        lines = [
+            "BAJÓ DE PRECIO",
+            _sale_headline(listing, new_usd),
+            "",
+            *_listing_block(listing, new_usd),
+            f"antes {_fmt_usd(old_usd)} → ahora {_fmt_usd(new_usd)} (Δ -{_fmt_usd(drop)} USD)",
+        ]
+        return "\n".join(lines)
     lines = [
         "BAJÓ DE PRECIO",
         "",

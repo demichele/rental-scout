@@ -6,7 +6,7 @@ from jobs.run_once import run
 from src.db import connect
 from src.match import is_drop, is_match, is_watch
 from src.models import Listing
-from src.prefs import load_prefs
+from src.prefs import load_prefs, load_sale_prefs
 
 
 def make_listing(**overrides) -> Listing:
@@ -41,6 +41,111 @@ def make_listing(**overrides) -> Listing:
 @pytest.fixture
 def prefs():
     return load_prefs()
+
+
+@pytest.fixture
+def sale_prefs():
+    prefs = load_sale_prefs()
+    assert prefs is not None
+    return prefs
+
+
+def test_sale_watch_ignores_rental_size_and_barrios(sale_prefs, prefs) -> None:
+    listing = make_listing(
+        operation="sale",
+        source="zonaprop_venta",
+        locality="Tigre",
+        barrio_name="Tigre centro",
+        title="Casa en Tigre centro",
+        bedrooms=2,
+        ambientes=None,
+        price=55000,
+        price_usd=55000,
+        is_gated=False,
+        has_pool=False,
+    )
+    assert is_watch(listing, sale_prefs) is True
+    assert is_match(listing, sale_prefs) is True
+    assert is_watch(listing, prefs) is False
+
+
+def test_sale_watch_pacheco_at_cap(sale_prefs) -> None:
+    listing = make_listing(
+        operation="sale",
+        source="zonaprop_venta",
+        locality="General Pacheco",
+        barrio_name=None,
+        title="Casa en General Pacheco",
+        bedrooms=None,
+        ambientes=None,
+        price=80000,
+        price_usd=80000,
+    )
+    assert is_watch(listing, sale_prefs) is True
+    assert is_match(listing, sale_prefs) is True
+
+
+def test_sale_drops_over_80k_and_other_partido(sale_prefs) -> None:
+    over = make_listing(
+        operation="sale",
+        locality="Tigre",
+        barrio_name="Tigre",
+        title="Casa en Tigre",
+        bedrooms=None,
+        ambientes=None,
+        price=80001,
+        price_usd=80001,
+    )
+    other = make_listing(
+        operation="sale",
+        locality="Escobar",
+        barrio_name="Escobar",
+        title="Casa en Escobar",
+        bedrooms=None,
+        ambientes=None,
+        price=50000,
+        price_usd=50000,
+    )
+    assert is_watch(over, sale_prefs) is False
+    assert is_watch(other, sale_prefs) is False
+
+
+def test_sale_and_rent_do_not_share_notification_identity(
+    db_path: Path, prefs, sale_prefs, monkeypatch
+) -> None:
+    sent: list[tuple] = []
+    monkeypatch.setattr(
+        "jobs.run_once.send_new",
+        lambda listing: sent.append((listing.source, listing.operation, listing.price_usd)),
+    )
+    monkeypatch.setattr(
+        "jobs.run_once.send_price_drop",
+        lambda listing, old_usd, new_usd: sent.append(("drop", listing.source)),
+    )
+    rent = make_listing(source="zonaprop", external_id="SAME-ID", raw_hash="rent")
+    sale = make_listing(
+        operation="sale",
+        source="zonaprop_venta",
+        external_id="SAME-ID",
+        locality="Tigre",
+        barrio_name="Tigre",
+        title="Casa en Tigre",
+        bedrooms=2,
+        ambientes=None,
+        price=55000,
+        price_usd=55000,
+        raw_hash="sale",
+    )
+    rent_stats = _run([rent], db_path=db_path, prefs=prefs)
+    sale_stats = _run([sale], db_path=db_path, prefs=sale_prefs)
+    assert rent_stats.new_notified == 1
+    assert sale_stats.new_notified == 1
+    assert sent == [
+        ("zonaprop", "rent", 2200),
+        ("zonaprop_venta", "sale", 55000),
+    ]
+    assert _count(db_path, "listings") == 2
+    assert _count(db_path, "notifications") == 2
 
 
 @pytest.fixture

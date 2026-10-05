@@ -1,0 +1,23 @@
+# Casas en venta en Tigre / General Pacheco. Independiente del alquiler.
+# SERPs ZonaProp: /casas-venta-tigre.html y /casas-venta-general-pacheco.html
+# (el slug menos-80000-dolar redirige 301; el tope va acá).
+operation: sale
+listing_source: zonaprop_venta
+locality: Tigre
+localities:
+  - Tigre
+  - General Pacheco
+  - Pacheco
+barrios: []
+gated_only: false
+min_bedrooms: 0
+min_ambientes: 0
+require_pool: false
+property_type: house
+min_price_usd: 0
+max_price_usd: 80000
+watch_max_price_usd: 80000
+min_drop_usd: 1000
+min_drop_pct: 0.03
+enabled_adapters:
+  - zonaprop

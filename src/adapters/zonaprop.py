@@ -7,12 +7,13 @@ bloquea o no son públicas. No burla captchas ni WAF.
 
 Cómo guardar la fixture a mano (si el GET está bloqueado):
 
-1. En un navegador normal abrí una SERP de barrio, p.ej.
+    1. En un navegador normal abrí una SERP de barrio, p.ej.
    https://www.zonaprop.com.ar/casas-alquiler-nordelta.html
    (el slug menos-de-N-dolares redirige 301 a la SERP sin tope).
-2. Si aparece captcha o challenge, resolvelo vos. No lo hagas desde acá.
-3. Archivo → Guardar como → Sólo HTML, a tests/fixtures/zonaprop.html
-4. Con el <script> que contiene window.__PRELOADED_STATE__ alcanza.
+   Venta: /casas-venta-tigre.html y /casas-venta-general-pacheco.html.
+    2. Si aparece captcha o challenge, resolvelo vos. No lo hagas desde acá.
+    3. Archivo → Guardar como → Sólo HTML, a tests/fixtures/zonaprop.html
+    4. Con el <script> que contiene window.__PRELOADED_STATE__ alcanza.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from src.match import enough_size, fold_text, text_matches_barrios
+from src.match import enough_size, fold_text, size_required, text_matches_barrios
 from src.models import Listing
 from src.prefs import Prefs, load_prefs
 
@@ -45,6 +46,13 @@ MAX_PAGES = 5
 
 # SERP HTML. robots.txt permite pág. 1 y pagina-2..5; no /avisos-api/.
 SEARCH_PATH = "/casas-alquiler-nordelta.html"
+SALE_SEARCH_PATH = "/casas-venta-tigre.html"
+
+# Localidades de venta → slug ZonaProp. "Pacheco" es alias de match, no SERP.
+_SALE_SEARCH_SLUGS: dict[str, str] = {
+    "tigre": "tigre",
+    "general pacheco": "general-pacheco",
+}
 
 # Slugs de ZonaProp por barrio (sin acento). Talar del Lago son dos countries
 # (I y II); los slugs *-1 / *-2 redirigen 301 al SERP nacional.
@@ -78,7 +86,7 @@ _GATED_RE = re.compile(
 _POOL_RE = re.compile(r"\b(?:pileta|piscina)\b", re.IGNORECASE)
 _PRELOADED_RE = re.compile(r"window\.__PRELOADED_STATE__\s*=\s*")
 _SERP_SLUG_RE = re.compile(
-    r"^/casas-alquiler-(.+?)(?:-pagina-\d+)?\.html$",
+    r"^/casas-(?:alquiler|venta)-(.+?)(?:-pagina-\d+)?\.html$",
     re.IGNORECASE,
 )
 _BLOCKED_RE = re.compile(
@@ -92,8 +100,10 @@ class FetchNotAllowed(RuntimeError):
 
 
 def search_paths(prefs: Prefs | None = None) -> list[str]:
-    """SERPs HTML por barrio de prefs. Sin duplicados, orden de prefs.barrios."""
+    """SERPs HTML por barrio (alquiler) o localidad (venta)."""
     prefs = prefs or load_prefs()
+    if prefs.operation == "sale":
+        return _sale_search_paths(prefs)
     paths: list[str] = []
     seen: set[str] = set()
     for barrio in prefs.barrios:
@@ -103,6 +113,21 @@ def search_paths(prefs: Prefs | None = None) -> list[str]:
                 seen.add(path)
                 paths.append(path)
     return paths or [SEARCH_PATH]
+
+
+def _sale_search_paths(prefs: Prefs) -> list[str]:
+    paths: list[str] = []
+    seen: set[str] = set()
+    names = prefs.localities or ([prefs.locality] if prefs.locality else [])
+    for name in names:
+        slug = _SALE_SEARCH_SLUGS.get(fold_text(name))
+        if not slug:
+            continue
+        path = f"/casas-venta-{slug}.html"
+        if path not in seen:
+            seen.add(path)
+            paths.append(path)
+    return paths or [SALE_SEARCH_PATH]
 
 
 def search_url(
@@ -390,10 +415,12 @@ def _try_map_item(item: dict[str, Any], prefs: Prefs) -> tuple[Listing | None, s
         return None, "not_house"
     if prefs.barrios and not text_matches_barrios(_evidence_blob(item), prefs.barrios):
         return None, "wrong_barrio"
+    if prefs.localities and not text_matches_barrios(_evidence_blob(item), prefs.localities):
+        return None, "wrong_locality"
 
     bedrooms = _feature_int(item, "dormitorio", "habitacion", "habitación")
     rooms = _feature_int(item, "ambiente")
-    if not enough_size(bedrooms, rooms, prefs):
+    if size_required(prefs) and not enough_size(bedrooms, rooms, prefs):
         return None, "bedrooms"
 
     is_gated = _is_gated(item)
@@ -406,17 +433,21 @@ def _try_map_item(item: dict[str, Any], prefs: Prefs) -> tuple[Listing | None, s
 
     currency, price = _price(item)
     price_usd = price if currency == "USD" else None
+    if prefs.operation == "sale" and price_usd is None:
+        return None, "no_usd"
     if price_usd is not None and price_usd > prefs.watch_max_price_usd:
         return None, "over_watch"
 
     loc = _posting_location(item)
     barrio = _nested_str(loc, "location", "name") if loc else None
+    source = (prefs.listing_source or "zonaprop").strip() or "zonaprop"
     return Listing(
-        source="zonaprop",
+        source=source,
         external_id=external_id,
+        operation=prefs.operation,
         url=_url(item, external_id),
         title=_title(item, external_id),
-        locality=_locality_name(item),
+        locality=_locality_name(item, prefs),
         barrio_name=barrio or None,
         is_gated=is_gated,
         bedrooms=bedrooms,
@@ -454,7 +485,13 @@ def _is_house(item: dict[str, Any], prefs: Prefs) -> bool:
     return ("casa" in title or generated.startswith("casa")) and "departamento" not in title
 
 
-def _locality_name(item: dict[str, Any]) -> str:
+def _locality_name(item: dict[str, Any], prefs: Prefs | None = None) -> str:
+    names = _location_names(item)
+    if prefs and prefs.localities:
+        for canonical in sorted(prefs.localities, key=lambda name: -len(name.strip())):
+            folded = fold_text(canonical)
+            if any(folded == fold_text(name) or folded in fold_text(name) for name in names):
+                return canonical
     loc = _posting_location(item)
     node = loc.get("location") if loc else None
     if isinstance(node, dict):
@@ -467,6 +504,18 @@ def _locality_name(item: dict[str, Any]) -> str:
         if leaf:
             return leaf
     return "Tigre"
+
+
+def _location_names(item: dict[str, Any]) -> list[str]:
+    names: list[str] = []
+    loc = _posting_location(item)
+    node: Any = loc.get("location") if loc else None
+    while isinstance(node, dict):
+        name = str(node.get("name") or "").strip()
+        if name:
+            names.append(name)
+        node = node.get("parent")
+    return names
 
 
 def _is_gated(item: dict[str, Any]) -> bool:
