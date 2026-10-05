@@ -3,12 +3,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+Operation = Literal["rent", "sale"]
+
 
 class Listing(BaseModel):
     """Contrato de aviso. bedrooms = dormitorios; ambientes es independiente."""
 
     source: str
     external_id: str
+    operation: Operation = "rent"
     url: str
     title: str
     locality: str

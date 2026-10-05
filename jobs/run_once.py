@@ -19,7 +19,7 @@ from src.db import (
 from src.match import is_drop, is_match, is_watch
 from src.models import Listing
 from src.notify_telegram import TelegramConfigError, require_credentials, send_new, send_price_drop
-from src.prefs import Prefs, load_prefs
+from src.prefs import Prefs, load_prefs, load_searches
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 log = logging.getLogger(__name__)
@@ -68,9 +68,45 @@ def run(
     db_path: Path | None = None,
     dry_run: bool = False,
 ) -> RunStats:
-    prefs = prefs or load_prefs()
+    if prefs is not None or fetchers is not None:
+        return _run_search(
+            prefs or load_prefs(),
+            list(fetchers) if fetchers is not None else None,
+            db_path=db_path,
+            dry_run=dry_run,
+        )
+    totals = RunStats(fetched=0, upserted=0, new_notified=0, drop_notified=0)
+    for search in load_searches():
+        part = _run_search(search, None, db_path=db_path, dry_run=dry_run)
+        totals = RunStats(
+            fetched=totals.fetched + part.fetched,
+            upserted=totals.upserted + part.upserted,
+            new_notified=totals.new_notified + part.new_notified,
+            drop_notified=totals.drop_notified + part.drop_notified,
+        )
+    log.info(
+        "all searches fetched=%s upserted=%s new_notified=%s drop_notified=%s",
+        totals.fetched,
+        totals.upserted,
+        totals.new_notified,
+        totals.drop_notified,
+    )
+    return totals
+
+
+def _run_search(
+    prefs: Prefs,
+    fetchers: Sequence[Fetcher] | None,
+    *,
+    db_path: Path | None,
+    dry_run: bool,
+) -> RunStats:
     fetchers = list(fetchers) if fetchers is not None else _available_fetchers(prefs)
-    log.info("adapters: %s", ", ".join(prefs.enabled_adapters) or "(ninguno)")
+    log.info(
+        "search=%s adapters: %s",
+        prefs.operation,
+        ", ".join(prefs.enabled_adapters) or "(ninguno)",
+    )
 
     listings: list[Listing] = []
     for fetch in fetchers:
@@ -137,7 +173,8 @@ def run(
         drop_notified=drop_notified,
     )
     log.info(
-        "fetched=%s upserted=%s new_notified=%s drop_notified=%s",
+        "search=%s fetched=%s upserted=%s new_notified=%s drop_notified=%s",
+        prefs.operation,
         stats.fetched,
         stats.upserted,
         stats.new_notified,

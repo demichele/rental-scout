@@ -27,7 +27,16 @@ def listing_matches_barrios(listing: Listing, prefs: Prefs) -> bool:
             part for part in (listing.barrio_name, listing.locality, listing.title) if part
         )
         return text_matches_barrios(blob, prefs.barrios)
+    if prefs.localities:
+        blob = " ".join(
+            part for part in (listing.barrio_name, listing.locality, listing.title) if part
+        )
+        return text_matches_barrios(blob, prefs.localities)
     return listing.locality.strip().casefold() == prefs.locality.strip().casefold()
+
+
+def size_required(prefs: Prefs) -> bool:
+    return prefs.min_bedrooms > 0 or prefs.min_ambientes > 0
 
 
 def is_watch(listing: Listing, prefs: Prefs) -> bool:
@@ -42,7 +51,7 @@ def is_watch(listing: Listing, prefs: Prefs) -> bool:
         return False
     if prefs.gated_only and not listing.is_gated:
         return False
-    if not enough_size(listing.bedrooms, listing.ambientes, prefs):
+    if size_required(prefs) and not enough_size(listing.bedrooms, listing.ambientes, prefs):
         return False
     if prefs.require_pool and not listing.has_pool:
         return False
@@ -84,6 +93,8 @@ def enough_size(
     bedrooms: int | None, ambientes: int | None, prefs: Prefs
 ) -> bool:
     """3+ dormitorios y 5+ ambientes. Si no hay ambientes, 4 dorm ≈ 5 amb."""
+    if not size_required(prefs):
+        return True
     if ambientes is not None and ambientes < prefs.min_ambientes:
         return False
     if bedrooms is not None and bedrooms < prefs.min_bedrooms:

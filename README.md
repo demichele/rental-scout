@@ -16,14 +16,14 @@ Treat property search as a small operations pipeline, not as a website.
 4. **Remember state** so a house is not “new” twice.
 5. **Report only what matters** — a qualifying listing, or a price drop into range.
 
-The current campaign is gated communities in **Tigre / Pacheco (Buenos Aires)**. The code is the orchestrator; the campaign lives in configuration.
+The current campaigns are **rental** (gated barrios in Tigre / Pacheco) and **sale** (cheap houses in Tigre and General Pacheco). The code is the orchestrator; each campaign lives in its own prefs file.
 
 ## Pipeline
 
 ```mermaid
 flowchart LR
   subgraph brief [Search brief]
-    P[prefs.yaml]
+    P[prefs.yaml + prefs.sale.yaml]
   end
   subgraph worker [Scheduled job]
     J[jobs.run_once]
@@ -57,13 +57,14 @@ Each pass is one shot. Nothing sits in a long-running server. A timer (systemd, 
 ## Architecture
 
 ```
-prefs.yaml          search brief (neighborhoods, size, USD band, adapters)
+prefs.yaml          rental brief (barrios, size, USD rent band, adapters)
+prefs.sale.yaml     sale brief (Tigre / Pacheco houses, max 80k USD)
 src/adapters/       one fetcher per portal (ZonaProp, Argenprop, Mercado Libre)
 src/models.py       shared Listing contract
 src/match.py        watch / match / price-drop rules
 src/db.py           SQLite watchlist + notification log
 src/notify_telegram.py   report formatter + delivery
-jobs/run_once.py    the orchestrator
+jobs/run_once.py    the orchestrator (runs both hunts)
 ```
 
 Adapters are independently toggleable. A portal that is blocked, flaky, or out of scope is turned off in `prefs.yaml` without touching the rest of the pipeline.
@@ -72,7 +73,7 @@ The worker is **read-only against the portals** and **append-mostly against its 
 
 ## Search brief
 
-The brief is data. Change `prefs.yaml` to retarget the scout:
+The brief is data. Change `prefs.yaml` to retarget the **rental** scout, and `prefs.sale.yaml` for **houses for sale** (Tigre and General Pacheco, ≤ 80.000 USD). Both hunts run in the same `jobs.run_once` pass and the same Telegram chat. Sale alerts start with `VENTA - CASA EN TIGRE por 55.000 USD`.
 
 - Neighborhoods (countries / barrios)
 - House vs other types
@@ -86,7 +87,7 @@ Code stays the same. The next scheduled pass picks up the new brief.
 
 Alerts are short operational messages, not portal clones:
 
-- Headline with neighborhood and rent
+- Headline with neighborhood and rent, or `VENTA - CASA EN TIGRE por 55.000 USD` for the sale hunt
 - Bedrooms, price, expenses
 - Link to the listing
 - Why it matched the brief
