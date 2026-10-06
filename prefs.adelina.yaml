@@ -1,0 +1,21 @@
+# Alquiler Villa Adelina. Independiente de countries Tigre y de venta.
+# SERP: https://www.zonaprop.com.ar/casas-alquiler-villa-adelina.html
+operation: rent
+listing_source: zonaprop_adelina
+locality: Villa Adelina
+barrios:
+  - Villa Adelina
+gated_only: false
+min_bedrooms: 0
+min_ambientes: 4
+require_pool: false
+property_type: house
+min_price_usd: 1200
+max_price_usd: 2500
+watch_max_price_usd: 2500
+min_price_ars: 1
+max_price_ars: 3000000
+min_drop_usd: 50
+min_drop_pct: 0.03
+enabled_adapters:
+  - zonaprop

@@ -104,7 +104,7 @@ def _run_search(
     fetchers = list(fetchers) if fetchers is not None else _available_fetchers(prefs)
     log.info(
         "search=%s adapters: %s",
-        prefs.operation,
+        prefs.listing_source or prefs.operation,
         ", ".join(prefs.enabled_adapters) or "(ninguno)",
     )
 
@@ -174,7 +174,7 @@ def _run_search(
     )
     log.info(
         "search=%s fetched=%s upserted=%s new_notified=%s drop_notified=%s",
-        prefs.operation,
+        prefs.listing_source or prefs.operation,
         stats.fetched,
         stats.upserted,
         stats.new_notified,

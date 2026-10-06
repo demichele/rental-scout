@@ -6,7 +6,7 @@ from jobs.run_once import run
 from src.db import connect
 from src.match import is_drop, is_match, is_watch
 from src.models import Listing
-from src.prefs import load_prefs, load_sale_prefs
+from src.prefs import load_adelina_prefs, load_prefs, load_sale_prefs, load_searches
 
 
 def make_listing(**overrides) -> Listing:
@@ -41,6 +41,13 @@ def make_listing(**overrides) -> Listing:
 @pytest.fixture
 def prefs():
     return load_prefs()
+
+
+@pytest.fixture
+def adelina_prefs():
+    prefs = load_adelina_prefs()
+    assert prefs is not None
+    return prefs
 
 
 @pytest.fixture
@@ -147,6 +154,83 @@ def test_sale_drops_zero_and_below_10k(sale_prefs) -> None:
     assert is_match(cheap, sale_prefs) is False
     assert is_watch(floor, sale_prefs) is True
     assert is_match(floor, sale_prefs) is True
+
+
+def test_adelina_usd_band_and_four_ambientes(adelina_prefs) -> None:
+    listing = make_listing(
+        source="zonaprop_adelina",
+        locality="Villa Adelina",
+        barrio_name="Villa Adelina",
+        title="Casa en Villa Adelina",
+        bedrooms=2,
+        ambientes=4,
+        is_gated=False,
+        has_pool=False,
+        price=1800,
+        price_usd=1800,
+    )
+    assert is_watch(listing, adelina_prefs) is True
+    assert is_match(listing, adelina_prefs) is True
+    cheap = make_listing(
+        source="zonaprop_adelina",
+        locality="Villa Adelina",
+        barrio_name="Villa Adelina",
+        title="Casa en Villa Adelina",
+        bedrooms=2,
+        ambientes=4,
+        price=1100,
+        price_usd=1100,
+    )
+    three_rooms = make_listing(
+        source="zonaprop_adelina",
+        locality="Villa Adelina",
+        barrio_name="Villa Adelina",
+        title="Casa en Villa Adelina",
+        bedrooms=2,
+        ambientes=3,
+        price=1800,
+        price_usd=1800,
+    )
+    assert is_watch(cheap, adelina_prefs) is False
+    assert is_watch(three_rooms, adelina_prefs) is False
+
+
+def test_adelina_accepts_ars_up_to_3m(adelina_prefs, prefs) -> None:
+    listing = make_listing(
+        source="zonaprop_adelina",
+        locality="Villa Adelina",
+        barrio_name="Villa Adelina",
+        title="Casa en Villa Adelina",
+        bedrooms=None,
+        ambientes=4,
+        currency="ARS",
+        price=2_800_000,
+        price_usd=None,
+        is_gated=False,
+        has_pool=False,
+    )
+    over = make_listing(
+        source="zonaprop_adelina",
+        locality="Villa Adelina",
+        barrio_name="Villa Adelina",
+        title="Casa en Villa Adelina",
+        bedrooms=None,
+        ambientes=4,
+        currency="ARS",
+        price=3_100_000,
+        price_usd=None,
+    )
+    assert is_watch(listing, adelina_prefs) is True
+    assert is_match(listing, adelina_prefs) is True
+    assert is_watch(over, adelina_prefs) is False
+    assert is_watch(listing, prefs) is False
+
+
+def test_load_searches_includes_adelina_and_sale() -> None:
+    sources = [
+        (prefs.listing_source or "zonaprop") for prefs in load_searches()
+    ]
+    assert sources == ["zonaprop", "zonaprop_adelina", "zonaprop_venta"]
 
 
 def test_sale_and_rent_do_not_share_notification_identity(

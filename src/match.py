@@ -39,13 +39,30 @@ def size_required(prefs: Prefs) -> bool:
     return prefs.min_bedrooms > 0 or prefs.min_ambientes > 0
 
 
+def _usd_in_band(listing: Listing, low: int, high: int) -> bool:
+    usd = listing.price_usd
+    if usd is None:
+        return False
+    return low <= usd <= high
+
+
+def _ars_in_band(listing: Listing, prefs: Prefs) -> bool:
+    if prefs.max_price_ars is None:
+        return False
+    if (listing.currency or "").strip().upper() != "ARS":
+        return False
+    if listing.price <= 0:
+        return False
+    if listing.price < prefs.min_price_ars:
+        return False
+    return listing.price <= prefs.max_price_ars
+
+
 def is_watch(listing: Listing, prefs: Prefs) -> bool:
-    """True si el aviso se guarda: casa, barrio, tamaño, USD ≤ watch_max."""
-    if listing.price_usd is None:
-        return False
-    if listing.price_usd < prefs.min_price_usd:
-        return False
-    if listing.price_usd > prefs.watch_max_price_usd:
+    """True si el aviso se guarda: casa, barrio, tamaño, USD o ARS en el brief."""
+    in_usd = _usd_in_band(listing, prefs.min_price_usd, prefs.watch_max_price_usd)
+    in_ars = _ars_in_band(listing, prefs)
+    if not in_usd and not in_ars:
         return False
     if not _is_wanted_type(listing, prefs):
         return False
@@ -64,10 +81,9 @@ def is_match(listing: Listing, prefs: Prefs) -> bool:
     """WATCH + precio en el rango de notificación (NUEVA)."""
     if not is_watch(listing, prefs):
         return False
-    price = listing.price_usd
-    if price is None:
-        return False
-    return prefs.min_price_usd <= price <= prefs.max_price_usd
+    if _ars_in_band(listing, prefs):
+        return True
+    return _usd_in_band(listing, prefs.min_price_usd, prefs.max_price_usd)
 
 
 def is_drop(old_usd: float | None, new_usd: float | None, prefs: Prefs) -> bool:

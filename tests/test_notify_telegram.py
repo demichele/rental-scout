@@ -101,6 +101,29 @@ def test_send_new_sale_pacheco_headline(telegram_http) -> None:
     assert text.startswith("VENTA - CASA EN PACHECO por 80.000 USD")
 
 
+def test_send_new_adelina_ars_shows_pesos(telegram_http) -> None:
+    send_new(
+        make_listing(
+            source="zonaprop_adelina",
+            locality="Villa Adelina",
+            barrio_name="Villa Adelina",
+            title="Casa en Villa Adelina",
+            bedrooms=2,
+            ambientes=4,
+            currency="ARS",
+            price=2_800_000,
+            price_usd=None,
+            is_gated=False,
+        )
+    )
+    text = _text(telegram_http)
+    assert text.startswith("Casa en Villa Adelina por $ 2.800.000")
+    assert "Precio: $ 2.800.000" in text
+    assert "4+ ambientes" in text
+    assert "0+ dormitorios" not in text
+    assert "hasta $ 3.000.000" in text
+
+
 def test_send_price_drop_sale_keeps_venta_line(telegram_http) -> None:
     send_price_drop(
         make_listing(

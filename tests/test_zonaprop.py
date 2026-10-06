@@ -265,6 +265,16 @@ def test_search_url_is_public_html_serp() -> None:
     assert "menos-de-" not in url
 
 
+def test_adelina_search_url_is_villa_adelina_serp() -> None:
+    from src.prefs import load_adelina_prefs
+
+    prefs = load_adelina_prefs()
+    assert prefs is not None
+    paths = search_paths(prefs)
+    assert paths == ["/casas-alquiler-villa-adelina.html"]
+    assert search_url(path=paths[0]) == f"{BASE_URL}/casas-alquiler-villa-adelina.html"
+
+
 def test_fetch_skips_serp_redirected_off_barrio() -> None:
     prefs = load_prefs()
     robots = MagicMock()

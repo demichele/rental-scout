@@ -439,6 +439,13 @@ def _try_map_item(item: dict[str, Any], prefs: Prefs) -> tuple[Listing | None, s
         return None, "over_watch"
     if price_usd is not None and price_usd < prefs.min_price_usd:
         return None, "under_watch"
+    if price_usd is None and prefs.max_price_ars is not None:
+        if currency != "ARS":
+            return None, "no_usd"
+        if price > prefs.max_price_ars:
+            return None, "over_watch"
+        if price < prefs.min_price_ars:
+            return None, "under_watch"
 
     loc = _posting_location(item)
     barrio = _nested_str(loc, "location", "name") if loc else None

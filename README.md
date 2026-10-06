@@ -16,14 +16,14 @@ Treat property search as a small operations pipeline, not as a website.
 4. **Remember state** so a house is not “new” twice.
 5. **Report only what matters** — a qualifying listing, or a price drop into range.
 
-The current campaigns are **rental** (gated barrios in Tigre / Pacheco) and **sale** (cheap houses in Tigre and General Pacheco). The code is the orchestrator; each campaign lives in its own prefs file.
+The current campaigns are **rental** (gated barrios in Tigre / Pacheco), **Villa Adelina rentals**, and **sale** (cheap houses in Tigre and General Pacheco). The code is the orchestrator; each campaign lives in its own prefs file.
 
 ## Pipeline
 
 ```mermaid
 flowchart LR
   subgraph brief [Search brief]
-    P[prefs.yaml + prefs.sale.yaml]
+    P[prefs.yaml + prefs.adelina.yaml + prefs.sale.yaml]
   end
   subgraph worker [Scheduled job]
     J[jobs.run_once]
@@ -57,14 +57,15 @@ Each pass is one shot. Nothing sits in a long-running server. A timer (systemd, 
 ## Architecture
 
 ```
-prefs.yaml          rental brief (barrios, size, USD rent band, adapters)
-prefs.sale.yaml     sale brief (Tigre / Pacheco houses, max 80k USD)
+prefs.yaml          rental brief (Tigre countries, size, USD rent band, adapters)
+prefs.adelina.yaml  Villa Adelina rentals (4+ rooms, USD or ARS band)
+prefs.sale.yaml     sale brief (Tigre / Pacheco houses, 10k–80k USD)
 src/adapters/       one fetcher per portal (ZonaProp, Argenprop, Mercado Libre)
 src/models.py       shared Listing contract
 src/match.py        watch / match / price-drop rules
 src/db.py           SQLite watchlist + notification log
 src/notify_telegram.py   report formatter + delivery
-jobs/run_once.py    the orchestrator (runs both hunts)
+jobs/run_once.py    the orchestrator (runs every hunt)
 ```
 
 Adapters are independently toggleable. A portal that is blocked, flaky, or out of scope is turned off in `prefs.yaml` without touching the rest of the pipeline.
@@ -73,7 +74,7 @@ The worker is **read-only against the portals** and **append-mostly against its 
 
 ## Search brief
 
-The brief is data. Change `prefs.yaml` to retarget the **rental** scout, and `prefs.sale.yaml` for **houses for sale** (Tigre and General Pacheco, 10.000–80.000 USD). Both hunts run in the same `jobs.run_once` pass and the same Telegram chat. Sale alerts start with `VENTA - CASA EN TIGRE por 55.000 USD`.
+The brief is data. Change `prefs.yaml` to retarget the **rental** scout (Tigre countries), `prefs.adelina.yaml` for **Villa Adelina rentals** (4+ ambientes, 1.200–2.500 USD or up to 3.000.000 ARS), and `prefs.sale.yaml` for **houses for sale** (Tigre and General Pacheco, 10.000–80.000 USD). All hunts run in the same `jobs.run_once` pass and the same Telegram chat. Sale alerts start with `VENTA - CASA EN TIGRE por 55.000 USD`.
 
 - Neighborhoods (countries / barrios)
 - House vs other types

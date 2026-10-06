@@ -20,12 +20,12 @@ class TelegramConfigError(RuntimeError):
 
 
 def send_new(listing: Listing) -> None:
-    prefs = prefs_for_listing(listing.operation)
+    prefs = prefs_for_listing(listing)
     _send(_format_new(listing, prefs), preview_url=listing.url)
 
 
 def send_price_drop(listing: Listing, old_usd: float, new_usd: float) -> None:
-    prefs = prefs_for_listing(listing.operation)
+    prefs = prefs_for_listing(listing)
     _send(_format_price_drop(listing, old_usd, new_usd, prefs), preview_url=listing.url)
 
 
@@ -103,6 +103,15 @@ def _fmt_expenses(value: float | None) -> str:
     return f"$ {grouped}"
 
 
+def _fmt_ars(value: float) -> str:
+    number = float(value)
+    if number.is_integer():
+        grouped = f"{int(number):,}".replace(",", ".")
+        return f"$ {grouped}"
+    grouped = f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"$ {grouped.rstrip('0').rstrip(',')}"
+
+
 def _in_notify_range(price_usd: float, prefs: Prefs) -> bool:
     return prefs.min_price_usd <= price_usd <= prefs.max_price_usd
 
@@ -126,10 +135,16 @@ def _qualify_reasons(listing: Listing, prefs: Prefs, price_usd: float | None) ->
         reasons.append("barrio cerrado")
     if listing.ambientes is not None and listing.ambientes >= prefs.min_ambientes:
         reasons.append(f"{prefs.min_ambientes}+ ambientes")
-    if listing.bedrooms is not None and listing.bedrooms >= prefs.min_bedrooms:
+    if (
+        prefs.min_bedrooms > 0
+        and listing.bedrooms is not None
+        and listing.bedrooms >= prefs.min_bedrooms
+    ):
         reasons.append(f"{prefs.min_bedrooms}+ dormitorios")
     if price_usd is not None and _in_notify_range(price_usd, prefs):
         reasons.append(_range_label(prefs))
+    elif prefs.max_price_ars is not None and (listing.currency or "").upper() == "ARS":
+        reasons.append(f"hasta {_fmt_ars(prefs.max_price_ars)}")
     return ", ".join(reasons) if reasons else "cumple el brief de búsqueda"
 
 
@@ -146,15 +161,23 @@ def _anuncio_link(listing: Listing) -> str:
     return "Ver anuncio: —"
 
 
+def _listing_price_label(listing: Listing, price_usd: float | None = None) -> str:
+    usd = listing.price_usd if price_usd is None else price_usd
+    if usd is not None:
+        return f"{_fmt_usd(usd)} USD"
+    if (listing.currency or "").upper() == "ARS" and listing.price > 0:
+        return _fmt_ars(listing.price)
+    return "—"
+
+
 def _listing_block(listing: Listing, price_usd: float | None) -> list[str]:
     barrio = listing.barrio_name.strip() if listing.barrio_name else None
     bedrooms = listing.bedrooms if listing.bedrooms is not None else None
-    price_line = f"{_fmt_usd(price_usd)} USD" if price_usd is not None else "—"
     return [
         _html(listing.title),
         f"Barrio: {_html(barrio or '—')}",
         f"Dormitorios: {bedrooms if bedrooms is not None else '—'}",
-        f"Precio: {price_line}",
+        f"Precio: {_listing_price_label(listing, price_usd)}",
         f"Expensas: {_fmt_expenses(listing.expenses)}",
         _anuncio_link(listing),
     ]
@@ -166,12 +189,6 @@ def _place(listing: Listing) -> str:
         return barrio
     locality = (listing.locality or "").strip()
     return locality or "—"
-
-
-def _price_label(price_usd: float | None) -> str:
-    if price_usd is None:
-        return "—"
-    return f"{_fmt_usd(price_usd)} USD"
 
 
 def _sale_place_label(listing: Listing) -> str:
@@ -196,7 +213,7 @@ def _format_new(listing: Listing, prefs: Prefs) -> str:
     if listing.operation == "sale":
         lines = [_sale_headline(listing, listing.price_usd), "", *_listing_block(listing, listing.price_usd)]
         return "\n".join(lines)
-    headline = f"Casa en {_html(_place(listing))} por {_price_label(listing.price_usd)}"
+    headline = f"Casa en {_html(_place(listing))} por {_listing_price_label(listing)}"
     lines = [headline, "", *_listing_block(listing, listing.price_usd), ""]
     lines.append(f"Por qué califica: {_html(_qualify_reasons(listing, prefs, listing.price_usd))}")
     return "\n".join(lines)
